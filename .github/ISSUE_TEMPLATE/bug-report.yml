@@ -1,0 +1,56 @@
+name: Bug Report
+description: Report a bug in ACP Control Center
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **⚠️ Privacy warning:** Do NOT paste raw Kiro CLI logs, tokens, credentials,
+        profile ARNs, or session IDs into this issue. Use `--diagnostic` output
+        as a starting point but review and redact local usernames, filesystem paths,
+        or any other context you consider sensitive before posting publicly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: Diagnostic output
+      description: |
+        Paste the output of `swift run ACPControlCenter --diagnostic`.
+        Diagnostics exclude known credential/identity fields but may contain
+        filesystem paths. Review and redact local usernames/paths or other
+        sensitive context before posting publicly.
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: e.g. macOS 15.1
+    validations:
+      required: true
+
+  - type: input
+    id: xcode-version
+    attributes:
+      label: Xcode version
+      placeholder: e.g. Xcode 16.2
+    validations:
+      required: false

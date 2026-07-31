@@ -1,0 +1,33 @@
+name: Feature Request
+description: Suggest a feature or improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **⚠️ Privacy warning:** Do NOT paste raw Kiro CLI logs, tokens, credentials,
+        or session IDs into this issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature description
+      description: What would you like to see added or changed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this useful? What problem does it solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternative approaches?
+    validations:
+      required: false

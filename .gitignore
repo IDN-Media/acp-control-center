@@ -1,0 +1,41 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode derived data (local builds/tests)
+.derivedData/
+DerivedData/
+
+# Xcode user-specific state (never shared)
+xcuserdata/
+*.xcuserstate
+
+# macOS system artifacts
+.DS_Store
+**/.DS_Store
+
+# Build profiling
+*.profraw
+*.profdata
+
+# Code coverage
+*.xcresult
+
+# Kiro CLI local workspace config
+.kiro/
+
+# Xcode playground data
+timeline.xctimeline
+playground.xcworkspace
+
+# Apple provisioning / signing (not relevant pre-release)
+*.mobileprovision
+*.provisionprofile
+
+# Crash logs
+*.crash
+
+# Compiled output (SwiftPM / xcodebuild)
+*.o
+*.dSYM/

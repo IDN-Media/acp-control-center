@@ -1,0 +1,2 @@
+{"timestamp":"2026-07-22T04:17:07.724Z","level":"info","message":"[KiroAgent] Stored clientInfo.name: kiro-cli"}
+{"timestamp":"2026-07-22T04:18:02.100Z","level":"info","message":"[q-developer-converse] Sending GenerateAssistantResponse modelId=auto agentMode=vibe origin=AI_EDITOR streaming=true conversationId=sess_EXAMPLE0003","conversationId":"sess_EXAMPLE0003","turnId":"turn_EXAMPLE0003","rootTurnId":"turn_EXAMPLE0003"}

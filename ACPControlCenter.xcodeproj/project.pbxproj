@@ -1,0 +1,519 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		07A3605AA758CBCB9863D8A3 /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E426D33FF156DA605CE179FD /* DomainModels.swift */; };
+		2E33B8985A81A5D8B68FF88C /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7327436130D02CD7AAEF8810 /* DashboardView.swift */; };
+		30A19ADC5D9E8C55012F282D /* KiroModelObservationReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D168CD9E781D5CAFEC275E /* KiroModelObservationReader.swift */; };
+		4A77B902AE5E4485828ABE2E /* ProcessRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A79C45D4EA5C46C2516713EE /* ProcessRunner.swift */; };
+		502FB22D9C9D749487B802A6 /* Fixtures in Resources */ = {isa = PBXBuildFile; fileRef = 904BA8ACE125FF9F85DE8293 /* Fixtures */; };
+		6240F52D7E70E1240FCFE075 /* UTF8LineScannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C360980B009BF8DDC672AAED /* UTF8LineScannerTests.swift */; };
+		663FDAC20CE162D5E40DA22F /* KiroUsageReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13D982B0142B24F905D4B2A1 /* KiroUsageReader.swift */; };
+		828546F5BF5A00302BA10797 /* ACPWrapperReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A5461F1632A8A97FE30A390 /* ACPWrapperReaderTests.swift */; };
+		96589E6E374EC4ADF6CC7E63 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6925BB1570AA9D9BB144D54 /* DashboardViewModel.swift */; };
+		9EBBE94F9D758AB86EC86314 /* UTF8LineScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2872427855192394969D279A /* UTF8LineScanner.swift */; };
+		A58556193F07F45E31CFCAC3 /* DataAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB97945C64BD20C09F145B0D /* DataAvailabilityTests.swift */; };
+		AA9DD96A952B50BDD571F9DB /* FixtureLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 748E00443238D436DEF27FBF /* FixtureLocator.swift */; };
+		ACD318BA1D35127DAE049FFF /* KiroCLIResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59621DE42740A00D9BE508E /* KiroCLIResolverTests.swift */; };
+		B1F2A3C4D5E6F7081234ABCD /* KiroUsageLiveReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F2A3C4D5E6F7081234ABCE /* KiroUsageLiveReader.swift */; };
+		B1F2A3C4D5E6F7081234ABCF /* KiroUsageLiveReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F2A3C4D5E6F7081234ABD0 /* KiroUsageLiveReaderTests.swift */; };
+		CA696A40E7E31E349C4174F0 /* ACPControlCenterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FA0AC38CFE764B6C25BEBC5 /* ACPControlCenterApp.swift */; };
+		CBE6FA9AA25675FFA2B55316 /* KiroCLIResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCF7243436BCFF8C3CC44E2 /* KiroCLIResolver.swift */; };
+		CC8A4DDD213A3166E94FB05E /* KiroModelObservationReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790696ABFEF36C48F73B22CD /* KiroModelObservationReaderTests.swift */; };
+		D7F098CABD2AB25F6833FC26 /* ProcessRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0647A9D2485E017EC02FC220 /* ProcessRunnerTests.swift */; };
+		DE909E7771E7BD416034E115 /* KiroUsageReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 847A40B6DD4BA7965E1EE46E /* KiroUsageReaderTests.swift */; };
+		E8A189427B443B8A3BAF1373 /* ACPWrapperReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20C4B74EA03EB079E84B19A4 /* ACPWrapperReader.swift */; };
+		FC892AB53ADAF5056F3B42E2 /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4A79841FA8C5B7A46760ED /* DashboardViewModelTests.swift */; };
+		D1A2B3C4E5F60718293A4B5E /* PathRedactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5C /* PathRedactor.swift */; };
+		D1A2B3C4E5F60718293A4B5F /* PathRedactorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5D /* PathRedactorTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F0542638828E8CD162C23876 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1C85675B33B39FAA3E907ADC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0B15FA3860D943E4416BC7DC;
+			remoteInfo = ACPControlCenter;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0647A9D2485E017EC02FC220 /* ProcessRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessRunnerTests.swift; sourceTree = "<group>"; };
+		0A5461F1632A8A97FE30A390 /* ACPWrapperReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperReaderTests.swift; sourceTree = "<group>"; };
+		13D982B0142B24F905D4B2A1 /* KiroUsageReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroUsageReader.swift; sourceTree = "<group>"; };
+		1FA0AC38CFE764B6C25BEBC5 /* ACPControlCenterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPControlCenterApp.swift; sourceTree = "<group>"; };
+		20C4B74EA03EB079E84B19A4 /* ACPWrapperReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperReader.swift; sourceTree = "<group>"; };
+		2872427855192394969D279A /* UTF8LineScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UTF8LineScanner.swift; sourceTree = "<group>"; };
+		6E9173C1ED3271A3C51F9004 /* ACPControlCenter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ACPControlCenter.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7327436130D02CD7AAEF8810 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		748E00443238D436DEF27FBF /* FixtureLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureLocator.swift; sourceTree = "<group>"; };
+		790696ABFEF36C48F73B22CD /* KiroModelObservationReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroModelObservationReaderTests.swift; sourceTree = "<group>"; };
+		847A40B6DD4BA7965E1EE46E /* KiroUsageReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroUsageReaderTests.swift; sourceTree = "<group>"; };
+		8F938C7875E07D1286DBFB06 /* ACPControlCenterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ACPControlCenterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		904BA8ACE125FF9F85DE8293 /* Fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Fixtures; path = Tests/ACPControlCenterTests/Fixtures; sourceTree = SOURCE_ROOT; };
+		A79C45D4EA5C46C2516713EE /* ProcessRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessRunner.swift; sourceTree = "<group>"; };
+		A9D168CD9E781D5CAFEC275E /* KiroModelObservationReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroModelObservationReader.swift; sourceTree = "<group>"; };
+		B1F2A3C4D5E6F7081234ABCE /* KiroUsageLiveReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroUsageLiveReader.swift; sourceTree = "<group>"; };
+		B1F2A3C4D5E6F7081234ABD0 /* KiroUsageLiveReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroUsageLiveReaderTests.swift; sourceTree = "<group>"; };
+		C360980B009BF8DDC672AAED /* UTF8LineScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UTF8LineScannerTests.swift; sourceTree = "<group>"; };
+		C6925BB1570AA9D9BB144D54 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		CD4A79841FA8C5B7A46760ED /* DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModelTests.swift; sourceTree = "<group>"; };
+		CDCF7243436BCFF8C3CC44E2 /* KiroCLIResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroCLIResolver.swift; sourceTree = "<group>"; };
+		E426D33FF156DA605CE179FD /* DomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModels.swift; sourceTree = "<group>"; };
+		F59621DE42740A00D9BE508E /* KiroCLIResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroCLIResolverTests.swift; sourceTree = "<group>"; };
+		FB97945C64BD20C09F145B0D /* DataAvailabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataAvailabilityTests.swift; sourceTree = "<group>"; };
+		D1A2B3C4E5F60718293A4B5C /* PathRedactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathRedactor.swift; sourceTree = "<group>"; };
+		D1A2B3C4E5F60718293A4B5D /* PathRedactorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathRedactorTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0D083ECB9C748890DC193AB1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6E9173C1ED3271A3C51F9004 /* ACPControlCenter.app */,
+				8F938C7875E07D1286DBFB06 /* ACPControlCenterTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1AD148B7D534699F4132E244 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				35B40F05E823B5C5C3C49D25 /* ACPControlCenter */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		35B40F05E823B5C5C3C49D25 /* ACPControlCenter */ = {
+			isa = PBXGroup;
+			children = (
+				20C4B74EA03EB079E84B19A4 /* ACPWrapperReader.swift */,
+				7327436130D02CD7AAEF8810 /* DashboardView.swift */,
+				C6925BB1570AA9D9BB144D54 /* DashboardViewModel.swift */,
+				E426D33FF156DA605CE179FD /* DomainModels.swift */,
+				1FA0AC38CFE764B6C25BEBC5 /* ACPControlCenterApp.swift */,
+				CDCF7243436BCFF8C3CC44E2 /* KiroCLIResolver.swift */,
+				A9D168CD9E781D5CAFEC275E /* KiroModelObservationReader.swift */,
+				B1F2A3C4D5E6F7081234ABCE /* KiroUsageLiveReader.swift */,
+				13D982B0142B24F905D4B2A1 /* KiroUsageReader.swift */,
+				D1A2B3C4E5F60718293A4B5C /* PathRedactor.swift */,
+				A79C45D4EA5C46C2516713EE /* ProcessRunner.swift */,
+				2872427855192394969D279A /* UTF8LineScanner.swift */,
+			);
+			path = ACPControlCenter;
+			sourceTree = "<group>";
+		};
+		516F381EE7C5F26B8477034E /* ACPControlCenterTests */ = {
+			isa = PBXGroup;
+			children = (
+				0A5461F1632A8A97FE30A390 /* ACPWrapperReaderTests.swift */,
+				CD4A79841FA8C5B7A46760ED /* DashboardViewModelTests.swift */,
+				FB97945C64BD20C09F145B0D /* DataAvailabilityTests.swift */,
+				748E00443238D436DEF27FBF /* FixtureLocator.swift */,
+				904BA8ACE125FF9F85DE8293 /* Fixtures */,
+				F59621DE42740A00D9BE508E /* KiroCLIResolverTests.swift */,
+				790696ABFEF36C48F73B22CD /* KiroModelObservationReaderTests.swift */,
+				B1F2A3C4D5E6F7081234ABD0 /* KiroUsageLiveReaderTests.swift */,
+				847A40B6DD4BA7965E1EE46E /* KiroUsageReaderTests.swift */,
+				D1A2B3C4E5F60718293A4B5D /* PathRedactorTests.swift */,
+				0647A9D2485E017EC02FC220 /* ProcessRunnerTests.swift */,
+				C360980B009BF8DDC672AAED /* UTF8LineScannerTests.swift */,
+			);
+			path = ACPControlCenterTests;
+			sourceTree = "<group>";
+		};
+		6CB3B45670EE9721464F05C8 = {
+			isa = PBXGroup;
+			children = (
+				1AD148B7D534699F4132E244 /* Sources */,
+				D4788A352DB495E576B8FD2A /* Tests */,
+				0D083ECB9C748890DC193AB1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D4788A352DB495E576B8FD2A /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				516F381EE7C5F26B8477034E /* ACPControlCenterTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0B15FA3860D943E4416BC7DC /* ACPControlCenter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 96EB962BE7BA76309C9CB139 /* Build configuration list for PBXNativeTarget "ACPControlCenter" */;
+			buildPhases = (
+				755854B37A0F334098C2F1B5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ACPControlCenter;
+			packageProductDependencies = (
+			);
+			productName = ACPControlCenter;
+			productReference = 6E9173C1ED3271A3C51F9004 /* ACPControlCenter.app */;
+			productType = "com.apple.product-type.application";
+		};
+		78764EDBA49ADA24E8649599 /* ACPControlCenterTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5528E404AF71A75425C47807 /* Build configuration list for PBXNativeTarget "ACPControlCenterTests" */;
+			buildPhases = (
+				53DB554EBEA2C26589E91F57 /* Sources */,
+				8A2A53F4FD70D478CB8277D5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6C29EF6E68AD0E0C504D23AB /* PBXTargetDependency */,
+			);
+			name = ACPControlCenterTests;
+			packageProductDependencies = (
+			);
+			productName = ACPControlCenterTests;
+			productReference = 8F938C7875E07D1286DBFB06 /* ACPControlCenterTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1C85675B33B39FAA3E907ADC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					0B15FA3860D943E4416BC7DC = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 67C3AB2F5E58ACBA8A93B7AB /* Build configuration list for PBXProject "ACPControlCenter" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 6CB3B45670EE9721464F05C8;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0D083ECB9C748890DC193AB1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0B15FA3860D943E4416BC7DC /* ACPControlCenter */,
+				78764EDBA49ADA24E8649599 /* ACPControlCenterTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8A2A53F4FD70D478CB8277D5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				502FB22D9C9D749487B802A6 /* Fixtures in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		53DB554EBEA2C26589E91F57 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				828546F5BF5A00302BA10797 /* ACPWrapperReaderTests.swift in Sources */,
+				FC892AB53ADAF5056F3B42E2 /* DashboardViewModelTests.swift in Sources */,
+				A58556193F07F45E31CFCAC3 /* DataAvailabilityTests.swift in Sources */,
+				AA9DD96A952B50BDD571F9DB /* FixtureLocator.swift in Sources */,
+				ACD318BA1D35127DAE049FFF /* KiroCLIResolverTests.swift in Sources */,
+				CC8A4DDD213A3166E94FB05E /* KiroModelObservationReaderTests.swift in Sources */,
+				B1F2A3C4D5E6F7081234ABCF /* KiroUsageLiveReaderTests.swift in Sources */,
+				DE909E7771E7BD416034E115 /* KiroUsageReaderTests.swift in Sources */,
+				D1A2B3C4E5F60718293A4B5F /* PathRedactorTests.swift in Sources */,
+				D7F098CABD2AB25F6833FC26 /* ProcessRunnerTests.swift in Sources */,
+				6240F52D7E70E1240FCFE075 /* UTF8LineScannerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		755854B37A0F334098C2F1B5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E8A189427B443B8A3BAF1373 /* ACPWrapperReader.swift in Sources */,
+				2E33B8985A81A5D8B68FF88C /* DashboardView.swift in Sources */,
+				96589E6E374EC4ADF6CC7E63 /* DashboardViewModel.swift in Sources */,
+				07A3605AA758CBCB9863D8A3 /* DomainModels.swift in Sources */,
+				CA696A40E7E31E349C4174F0 /* ACPControlCenterApp.swift in Sources */,
+				CBE6FA9AA25675FFA2B55316 /* KiroCLIResolver.swift in Sources */,
+				30A19ADC5D9E8C55012F282D /* KiroModelObservationReader.swift in Sources */,
+				B1F2A3C4D5E6F7081234ABCD /* KiroUsageLiveReader.swift in Sources */,
+				663FDAC20CE162D5E40DA22F /* KiroUsageReader.swift in Sources */,
+				D1A2B3C4E5F60718293A4B5E /* PathRedactor.swift in Sources */,
+				4A77B902AE5E4485828ABE2E /* ProcessRunner.swift in Sources */,
+				9EBBE94F9D758AB86EC86314 /* UTF8LineScanner.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6C29EF6E68AD0E0C504D23AB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0B15FA3860D943E4416BC7DC /* ACPControlCenter */;
+			targetProxy = F0542638828E8CD162C23876 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		07691304D275AE4F94F6FE59 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "ACP Control Center";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos;
+				PRODUCT_MODULE_NAME = ACPControlCenter;
+				PRODUCT_NAME = ACPControlCenter;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4D152529F4DE981C0172CAF8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "ACP Control Center";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos;
+				PRODUCT_MODULE_NAME = ACPControlCenter;
+				PRODUCT_NAME = ACPControlCenter;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		51C1050DBDCDC6EBFE77E686 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ACPControlCenter.app/Contents/MacOS/ACPControlCenter";
+			};
+			name = Debug;
+		};
+		963CC14A59E162C6A7E7A338 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		C5EE76CE2D39B93B9115EE7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		E5782BAECF8E3A956E2C66C1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ACPControlCenter.app/Contents/MacOS/ACPControlCenter";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5528E404AF71A75425C47807 /* Build configuration list for PBXNativeTarget "ACPControlCenterTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				51C1050DBDCDC6EBFE77E686 /* Debug */,
+				E5782BAECF8E3A956E2C66C1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		67C3AB2F5E58ACBA8A93B7AB /* Build configuration list for PBXProject "ACPControlCenter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C5EE76CE2D39B93B9115EE7E /* Debug */,
+				963CC14A59E162C6A7E7A338 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		96EB962BE7BA76309C9CB139 /* Build configuration list for PBXNativeTarget "ACPControlCenter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				07691304D275AE4F94F6FE59 /* Debug */,
+				4D152529F4DE981C0172CAF8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1C85675B33B39FAA3E907ADC /* Project object */;
+}

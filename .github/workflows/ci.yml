@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Swift version
+        run: swift --version
+
+      - name: SwiftPM test
+        run: |
+          set -euo pipefail
+          swift test 2>&1 | tee swift-test.log
+
+      - name: Xcode list schemes
+        run: |
+          set -euo pipefail
+          xcodebuild -project ACPControlCenter.xcodeproj -list
+
+      - name: Xcode build and test
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project ACPControlCenter.xcodeproj \
+            -scheme ACPControlCenter \
+            -destination 'platform=macOS' \
+            -derivedDataPath .derivedData \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcodebuild-test.log
