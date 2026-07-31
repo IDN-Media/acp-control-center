@@ -7,7 +7,9 @@ The current implementation provides read-only observability:
 - Menu bar status label with compact credit display (8 pt)
 - Live credit refresh via `kiro-cli chat --no-interactive '/usage'`
 - Local log fallback with clear source attribution
-- CLI version/executable resolution
+- Bounded CLI discovery across selected, known, `PATH`, and app-bundle paths
+- Manual executable selection with persisted path and recovery states
+- Separate account refresh, CLI search, and Xcode rescan actions
 - Latest observed model activity and attribution
 - ACP wrapper configuration display (model, effort, syntax validity)
 - Diagnostic summary (`--diagnostic` flag) with home-directory path redaction

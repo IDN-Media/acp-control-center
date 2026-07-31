@@ -33,7 +33,9 @@ struct KiroUsageLiveReader: Sendable {
     enum LiveReaderError: Error, Equatable, Sendable {
         case cliNotExecutable
         case notLoggedIn
+        case sessionExpired
         case timeout
+        case permissionDenied
         case commandFailed(reason: String)
         case parseFailed(reason: String)
     }
@@ -84,6 +86,13 @@ struct KiroUsageLiveReader: Sendable {
 
         if output.exitCode != 0 {
             let combined = Self.stripANSI(output.standardOutput + output.standardError)
+            if combined.localizedCaseInsensitiveContains("session expired")
+                || combined.localizedCaseInsensitiveContains("session has expired") {
+                return .failure(.sessionExpired)
+            }
+            if combined.localizedCaseInsensitiveContains("permission denied") {
+                return .failure(.permissionDenied)
+            }
             if combined.localizedCaseInsensitiveContains("not logged in")
                 || combined.localizedCaseInsensitiveContains("login")
                 || combined.localizedCaseInsensitiveContains("authenticate")

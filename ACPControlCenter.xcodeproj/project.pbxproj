@@ -22,6 +22,7 @@
 		ACD318BA1D35127DAE049FFF /* KiroCLIResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59621DE42740A00D9BE508E /* KiroCLIResolverTests.swift */; };
 		B1F2A3C4D5E6F7081234ABCD /* KiroUsageLiveReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F2A3C4D5E6F7081234ABCE /* KiroUsageLiveReader.swift */; };
 		B1F2A3C4D5E6F7081234ABCF /* KiroUsageLiveReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1F2A3C4D5E6F7081234ABD0 /* KiroUsageLiveReaderTests.swift */; };
+		E2C4A6B8D0F123456789ABCE /* KiroCLIDiscoveryIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C4A6B8D0F123456789ABCD /* KiroCLIDiscoveryIntegrationTests.swift */; };
 		CA696A40E7E31E349C4174F0 /* ACPControlCenterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FA0AC38CFE764B6C25BEBC5 /* ACPControlCenterApp.swift */; };
 		CBE6FA9AA25675FFA2B55316 /* KiroCLIResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCF7243436BCFF8C3CC44E2 /* KiroCLIResolver.swift */; };
 		CC8A4DDD213A3166E94FB05E /* KiroModelObservationReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790696ABFEF36C48F73B22CD /* KiroModelObservationReaderTests.swift */; };
@@ -61,6 +62,7 @@
 		A9D168CD9E781D5CAFEC275E /* KiroModelObservationReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroModelObservationReader.swift; sourceTree = "<group>"; };
 		B1F2A3C4D5E6F7081234ABCE /* KiroUsageLiveReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroUsageLiveReader.swift; sourceTree = "<group>"; };
 		B1F2A3C4D5E6F7081234ABD0 /* KiroUsageLiveReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroUsageLiveReaderTests.swift; sourceTree = "<group>"; };
+		E2C4A6B8D0F123456789ABCD /* KiroCLIDiscoveryIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroCLIDiscoveryIntegrationTests.swift; sourceTree = "<group>"; };
 		C360980B009BF8DDC672AAED /* UTF8LineScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UTF8LineScannerTests.swift; sourceTree = "<group>"; };
 		C6925BB1570AA9D9BB144D54 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		CD4A79841FA8C5B7A46760ED /* DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModelTests.swift; sourceTree = "<group>"; };
@@ -119,6 +121,7 @@
 				904BA8ACE125FF9F85DE8293 /* Fixtures */,
 				F59621DE42740A00D9BE508E /* KiroCLIResolverTests.swift */,
 				790696ABFEF36C48F73B22CD /* KiroModelObservationReaderTests.swift */,
+				E2C4A6B8D0F123456789ABCD /* KiroCLIDiscoveryIntegrationTests.swift */,
 				B1F2A3C4D5E6F7081234ABD0 /* KiroUsageLiveReaderTests.swift */,
 				847A40B6DD4BA7965E1EE46E /* KiroUsageReaderTests.swift */,
 				D1A2B3C4E5F60718293A4B5D /* PathRedactorTests.swift */,
@@ -240,6 +243,7 @@
 				AA9DD96A952B50BDD571F9DB /* FixtureLocator.swift in Sources */,
 				ACD318BA1D35127DAE049FFF /* KiroCLIResolverTests.swift in Sources */,
 				CC8A4DDD213A3166E94FB05E /* KiroModelObservationReaderTests.swift in Sources */,
+				E2C4A6B8D0F123456789ABCE /* KiroCLIDiscoveryIntegrationTests.swift in Sources */,
 				B1F2A3C4D5E6F7081234ABCF /* KiroUsageLiveReaderTests.swift in Sources */,
 				DE909E7771E7BD416034E115 /* KiroUsageReaderTests.swift in Sources */,
 				D1A2B3C4E5F60718293A4B5F /* PathRedactorTests.swift in Sources */,

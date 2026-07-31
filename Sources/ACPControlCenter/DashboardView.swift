@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The read-only menu bar dashboard: CLI status, account usage/freshness,
@@ -47,16 +48,31 @@ struct DashboardView: View {
     }
 
     private func cliSection(_ cli: KiroCLIInstallation) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Kiro CLI").font(.subheadline).bold()
-            Text(cli.executableURL.path)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
-                statusDot(cli.isExecutable)
-                Text(cli.isExecutable ? "Executable" : "Not executable")
+                Text("Kiro CLI").font(.subheadline).bold()
+                Spacer()
+                Button("Search Again") {
+                    Task { await viewModel.searchAgain() }
+                }
+                .disabled(viewModel.isRefreshing)
+                Button("Choose Executable\u{2026}") {
+                    chooseExecutable()
+                }
+                .disabled(viewModel.isRefreshing)
+            }
+            .font(.caption)
+
+            if let executableURL = cli.executableURL {
+                Text(executableURL.path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            HStack {
+                statusDot(cli.availability == .ready)
+                Text(cliStatusText(cli.availability))
                 Spacer()
                 Text(cli.version.map { "v\($0)" } ?? "version unknown")
                     .foregroundStyle(.secondary)
@@ -76,7 +92,7 @@ struct DashboardView: View {
                         .controlSize(.mini)
                 }
                 Button("Refresh") {
-                    Task { await viewModel.refresh() }
+                    Task { await viewModel.refreshAccountUsage() }
                 }
                 .font(.caption)
                 .disabled(viewModel.isRefreshing)
@@ -96,9 +112,11 @@ struct DashboardView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 usageSourceLabel(usage.source)
+                liveUsageRecoveryLabel
                 freshnessLabel(for: DataAvailability.classify(age: Date().timeIntervalSince(usage.observedAt)), observedAt: usage.observedAt)
             case .failure(let error):
                 errorLabel(error)
+                liveUsageRecoveryLabel
             }
         }
     }
@@ -130,7 +148,15 @@ struct DashboardView: View {
 
     private func wrapperSection(_ result: Result<ACPWrapperConfiguration, ReaderError>) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("ACP wrapper").font(.subheadline).bold()
+            HStack {
+                Text("ACP wrapper").font(.subheadline).bold()
+                Spacer()
+                Button("Rescan Xcode") {
+                    Task { await viewModel.rescanXcode() }
+                }
+                .font(.caption)
+                .disabled(viewModel.isRefreshing)
+            }
             switch result {
             case .success(let wrapper):
                 Text(wrapper.wrapperURL.path)
@@ -174,6 +200,70 @@ struct DashboardView: View {
         Circle()
             .fill(ok ? Color.green : Color.red)
             .frame(width: 6, height: 6)
+    }
+
+    private func cliStatusText(_ availability: KiroCLIAvailability) -> String {
+        switch availability {
+        case .ready:
+            return "Ready"
+        case .notFound:
+            return "Not found"
+        case .notExecutable:
+            return "Not executable"
+        case .launchFailed:
+            return "Launch failed"
+        }
+    }
+
+    private func chooseExecutable() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Kiro CLI Executable"
+        panel.prompt = "Choose"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        NSApplication.shared.activate()
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                await viewModel.chooseExecutable(url)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var liveUsageRecoveryLabel: some View {
+        switch viewModel.liveUsageStatus {
+        case .notAttempted, .ready:
+            EmptyView()
+        case .cliUnavailable:
+            recoveryText("Live usage unavailable until Kiro CLI is found.")
+        case .authenticationRequired:
+            recoveryText("Kiro CLI sign-in required. Sign in, then check again.")
+        case .sessionExpired:
+            recoveryText("Kiro CLI session expired. Sign in again, then check again.")
+        case .timedOut:
+            recoveryText("Live usage timed out. Check the CLI and try again.")
+        case .permissionDenied:
+            recoveryText("Kiro CLI could not launch because permission was denied.")
+        case .commandFailed:
+            recoveryText("Kiro CLI usage command failed. Try again or choose another executable.")
+        case .parseFailed:
+            recoveryText("Kiro CLI returned an unsupported usage format.")
+        }
+    }
+
+    private func recoveryText(_ message: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(message)
+                .foregroundStyle(.orange)
+            Spacer()
+            Button("Check Again") {
+                Task { await viewModel.refreshAccountUsage() }
+            }
+            .disabled(viewModel.isRefreshing)
+        }
+        .font(.caption2)
     }
 
     private func sourceLabel(_ source: ModelSource) -> String {

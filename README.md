@@ -1,4 +1,5 @@
 # ACP Control Center
+<h2 align="center"><img src="ss.png" width="80%"></h2>
 
 An unofficial macOS menu bar app (SwiftUI `MenuBarExtra`) providing read-only
 observability into your local ACP environment — currently supporting Kiro CLI
@@ -13,14 +14,15 @@ activity, and Xcode ACP wrapper configuration.
 
 This is the implemented read-only vertical slice. It reads local files and
 invokes `kiro-cli` for version and usage metadata only. **It never writes
-to any Kiro, Xcode, or wrapper file.** Wrapper management (writing
+to any Kiro, Xcode, or wrapper file.** The only persisted preference is a
+manually selected Kiro CLI executable path. Wrapper management (writing
 model/effort changes) is planned as a future phase and is not implemented.
 
 ## What it reads
 
 | Source | Default path | Purpose |
 |--------|-------------|---------|
-| Kiro CLI | `~/.local/bin/kiro-cli` | version + executable check (`--version`) |
+| Kiro CLI | selected path, known install paths, then `PATH` | bounded discovery + version check (`--version`) |
 | Live usage | `kiro-cli chat --no-interactive '/usage'` | live credit usage, plan, reset date |
 | Usage logs (fallback) | `~/Library/Application Support/Kiro/logs/**/q-client.log` | credit usage when live fails |
 | Agent logs | `~/.kiro/logs/*/kiro.log` | observed model ID, agent mode, attribution |
@@ -48,6 +50,8 @@ for stable numeric width without a fixed frame.
 - No third-party runtime dependencies (Foundation, SwiftUI, Observation,
   Testing); SwiftLint is a pinned build-time quality dependency
 - Live refresh requires `kiro-cli` installed and user logged in
+- Missing or moved CLI installations can be rescanned or selected with a
+  standard macOS file picker
 
 ## Build
 
@@ -118,7 +122,8 @@ into public issues.
 - Read-only display only — no wrapper writing in this slice
 - `origin=AI_EDITOR` displayed as "AI editor (unconfirmed)" — cannot
   reliably distinguish Kiro IDE from Xcode ACP
-- Dashboard performs an initial refresh and supports manual refresh, but does
-  not continuously watch local files
+- Dashboard performs an initial refresh and offers separate CLI search,
+  account refresh, and Xcode rescan actions, but does not continuously watch
+  local files
 - Live `/usage` parser depends on current CLI text format; falls back
   gracefully if format changes
