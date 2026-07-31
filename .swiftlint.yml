@@ -1,0 +1,42 @@
+strict: true
+
+included:
+  - Sources
+  - Tests
+
+excluded:
+  - .build
+  - .derivedData
+
+line_length:
+  warning: 160
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+file_length:
+  warning: 700
+  error: 900
+
+function_body_length:
+  warning: 80
+  error: 120
+
+type_body_length:
+  warning: 600
+  error: 800
+
+cyclomatic_complexity:
+  warning: 15
+  error: 20
+
+large_tuple:
+  warning: 3
+  error: 4
+
+identifier_name:
+  min_length: 2
+  excluded:
+    - id
+
+reporter: xcode

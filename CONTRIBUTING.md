@@ -14,9 +14,27 @@ additional terms or conditions. See [LICENSE](LICENSE).
   `Tests/` target directories; the same files must still be added manually to
   the appropriate `.xcodeproj` target.
 
-## Running tests
+## Running quality checks
 
-Both test paths must pass:
+SwiftLint is pinned through the `SwiftLintPlugins` Swift package. It does not
+require a global Homebrew installation. Run lint before compiling so lint and
+compiler failures remain separate:
+
+```bash
+swift package plugin \
+  --allow-writing-to-package-directory \
+  swiftlint --strict
+```
+
+The plugin requests write permission because its optional `--fix` mode can
+edit source files; the command above performs linting only.
+
+SwiftLint is intentionally enforced as a command plugin and a separate CI job,
+not as an automatic build-tool phase. This keeps lint diagnostics separate
+from compiler output and avoids verbose prebuild failures exposing unrelated
+build-process environment values.
+
+Both test paths must also pass:
 
 ```bash
 # SwiftPM
@@ -81,13 +99,14 @@ specification.
 - Keep PRs focused on a single concern.
 - Include test coverage for new readers or parsers.
 - Ensure both `swift test` and `xcodebuild test` pass locally.
-- Do not introduce third-party dependencies (this project uses Foundation,
-  SwiftUI, Observation, and Testing only).
+- Do not introduce third-party runtime dependencies without prior discussion.
+  `SwiftLintPlugins` is the only pinned build-time dependency.
 - Match the existing code style (Swift 6 concurrency, `@MainActor` view
   model, `Result`-based reader outputs).
 
 ## Pull request checklist
 
+- [ ] SwiftLint passes with no warnings or errors
 - [ ] `swift test` passes
 - [ ] `xcodebuild test` passes (CODE_SIGNING_ALLOWED=NO)
 - [ ] New source files belong to the intended `.xcodeproj` target and are

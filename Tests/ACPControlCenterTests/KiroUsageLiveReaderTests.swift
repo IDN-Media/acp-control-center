@@ -145,7 +145,9 @@ struct KiroUsageLiveReaderTests {
         let reader = KiroUsageLiveReader(
             cliExecutableURL: URL(fileURLWithPath: "/tmp/fake-cli")
         )
-        let rawText = "\u{1B}[1mEstimated Usage\u{1B}[0m | resets on 2026-08-01 | \u{1B}[32mKIRO PRO\u{1B}[0m\n\u{1B}[36mCredits\u{1B}[0m (739.91 of 1000 covered in plan)\n"
+        let rawText = "\u{1B}[1mEstimated Usage\u{1B}[0m | resets on 2026-08-01 | "
+            + "\u{1B}[32mKIRO PRO\u{1B}[0m\n"
+            + "\u{1B}[36mCredits\u{1B}[0m (739.91 of 1000 covered in plan)\n"
         let cleaned = KiroUsageLiveReader.stripANSI(rawText)
         let result = reader.parse(cleaned, observedAt: Date())
 

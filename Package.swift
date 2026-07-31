@@ -12,6 +12,12 @@ let package = Package(
             targets: ["ACPControlCenter"]
         )
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/SimplyDanny/SwiftLintPlugins",
+            exact: "0.65.0"
+        )
+    ],
     targets: [
         .executableTarget(
             name: "ACPControlCenter",

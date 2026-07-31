@@ -126,8 +126,10 @@ struct ProcessRunner: Sendable {
         if data.count > cap {
             // File exceeds cap — return the prefix with truncation marker.
             let prefix = data.prefix(cap)
-            let text = String(data: prefix, encoding: .utf8)
-                ?? String(decoding: prefix, as: UTF8.self)
+            // The byte cap may split a UTF-8 scalar. Lossy decoding preserves
+            // the valid prefix and substitutes only the incomplete scalar.
+            // swiftlint:disable:next optional_data_string_conversion
+            let text = String(decoding: prefix, as: UTF8.self)
             return text + "\n[output truncated]"
         } else {
             return String(data: data, encoding: .utf8) ?? ""
