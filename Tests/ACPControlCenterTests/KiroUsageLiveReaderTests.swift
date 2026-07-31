@@ -262,6 +262,44 @@ struct KiroUsageLiveReaderTests {
     }
 
     @Test
+    func expiredSessionIsDistinguishedFromFirstTimeLogin() throws {
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let scriptURL = tmpDir.appendingPathComponent("fake-kiro-cli")
+        try "#!/bin/sh\necho 'Authentication session expired' >&2\nexit 1\n"
+            .write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        let result = KiroUsageLiveReader(cliExecutableURL: scriptURL).fetchLiveUsage()
+
+        guard case .failure(let error) = result else {
+            Issue.record("Expected session-expired failure")
+            return
+        }
+        #expect(error == .sessionExpired)
+    }
+
+    @Test
+    func permissionFailureIsActionableWithoutExposingRawOutput() throws {
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let scriptURL = tmpDir.appendingPathComponent("fake-kiro-cli")
+        try "#!/bin/sh\necho 'Permission denied: private detail' >&2\nexit 126\n"
+            .write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        let result = KiroUsageLiveReader(cliExecutableURL: scriptURL).fetchLiveUsage()
+
+        guard case .failure(let error) = result else {
+            Issue.record("Expected permission-denied failure")
+            return
+        }
+        #expect(error == .permissionDenied)
+    }
+
+    @Test
     func nonZeroExitWithoutLoginMessageReturnsCommandFailed() {
         let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
@@ -422,6 +460,7 @@ struct KiroUsageLiveReaderTests {
         #expect(usage.source == .liveCLI)
         // Live CLI has no backing file — sourceURL must be nil, never /dev/null
         #expect(usage.sourceURL == nil)
+        #expect(viewModel.liveUsageStatus == .ready)
     }
 
     @Test @MainActor
@@ -482,6 +521,7 @@ struct KiroUsageLiveReaderTests {
         #expect(usage.source == .localLog)
         // Local log fallback has an actual source file URL
         #expect(usage.sourceURL != nil)
+        #expect(viewModel.liveUsageStatus == .authenticationRequired)
     }
 
     @Test @MainActor
@@ -522,6 +562,7 @@ struct KiroUsageLiveReaderTests {
             return
         }
         #expect(usage.source == .localLog)
+        #expect(viewModel.liveUsageStatus == .cliUnavailable)
     }
 
     @Test @MainActor
@@ -561,6 +602,7 @@ struct KiroUsageLiveReaderTests {
             return
         }
         #expect(usage.source == .localLog)
+        #expect(viewModel.liveUsageStatus == .cliUnavailable)
     }
 
     @Test @MainActor
@@ -631,4 +673,5 @@ struct KiroUsageLiveReaderTests {
         #expect(summary.contains("local log (fallback)"))
         #expect(!summary.contains("live Kiro CLI"))
     }
+
 }

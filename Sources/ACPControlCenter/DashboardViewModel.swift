@@ -2,21 +2,24 @@ import Foundation
 import Observation
 
 /// Composes the read-only readers into a single dashboard snapshot for the
-/// menu bar UI. Performs no writes and never opens Kiro IDE or executes the
-/// ACP wrapper as an agent.
+/// menu bar UI. It writes only the optional selected-CLI path preference and
+/// never modifies Kiro/Xcode files, opens Kiro IDE, or executes the wrapper.
 @MainActor
 @Observable
 final class DashboardViewModel {
     private(set) var snapshot: DashboardSnapshot?
     private(set) var isRefreshing: Bool = false
+    private(set) var liveUsageStatus: KiroLiveUsageStatus = .notAttempted
     private var refreshGeneration: UInt = 0
     private var hasStartedInitialRefresh: Bool = false
+    private var selectedCLIURL: URL?
 
     private let cliResolver: KiroCLIResolver
     private let usageReader: KiroUsageReader
-    private let liveUsageReader: KiroUsageLiveReader?
+    private let configuredLiveUsageReader: KiroUsageLiveReader?
     private let modelReader: KiroModelObservationReader
     private let wrapperReader: ACPWrapperReader
+    private let cliSelectionStore: KiroCLISelectionStore
 
     /// Directories surfaced for diagnostic purposes so the user can inspect
     /// real data without the app claiming to interpret more than it parsed.
@@ -26,17 +29,22 @@ final class DashboardViewModel {
     init(
         cliResolver: KiroCLIResolver = KiroCLIResolver(),
         usageReader: KiroUsageReader = KiroUsageReader(),
-        liveUsageReader: KiroUsageLiveReader? = KiroUsageLiveReader(),
+        liveUsageReader: KiroUsageLiveReader? = nil,
         modelReader: KiroModelObservationReader = KiroModelObservationReader(),
         wrapperReader: ACPWrapperReader = ACPWrapperReader(),
+        cliSelectionStore: KiroCLISelectionStore = KiroCLISelectionStore(),
         usageLogsRoot: URL = KiroUsageReader.defaultLogsRoot(),
         modelLogsRoot: URL = KiroModelObservationReader.defaultLogsRoot()
     ) {
         self.cliResolver = cliResolver
         self.usageReader = usageReader
-        self.liveUsageReader = liveUsageReader
+        self.configuredLiveUsageReader = liveUsageReader
         self.modelReader = modelReader
         self.wrapperReader = wrapperReader
+        self.cliSelectionStore = cliSelectionStore
+        self.selectedCLIURL = cliResolver.acceptsPersistedSelection
+            ? cliSelectionStore.load()
+            : nil
         self.usageLogsRoot = usageLogsRoot
         self.modelLogsRoot = modelLogsRoot
     }
@@ -104,16 +112,8 @@ final class DashboardViewModel {
 
     // MARK: - Refresh
 
-    /// Re-reads all sources. Safe to call repeatedly; each call is a fresh,
-    /// read-only pass over local files.
-    ///
-    /// Usage data strategy:
-    /// 1. If a `liveUsageReader` is configured, attempt a live CLI request
-    ///    first (`kiro-cli chat --no-interactive '/usage'`).
-    /// 2. If the live request succeeds, use its result with `.liveCLI` source.
-    /// 3. If it fails (not logged in, timeout, parse error, CLI missing),
-    ///    fall back to the local `q-client.log` reader with `.localLog`
-    ///    source, preserving the stale timestamp.
+    /// Re-reads all sources. Usage is resolved from the discovered executable;
+    /// an explicitly injected live reader remains available for isolated tests.
     func refresh() async {
         refreshGeneration &+= 1
         let generation = refreshGeneration
@@ -129,40 +129,163 @@ final class DashboardViewModel {
         // refreshing the menu does not freeze the UI.
         let cliResolver = self.cliResolver
         let usageReader = self.usageReader
-        let liveUsageReader = self.liveUsageReader
+        let configuredLiveUsageReader = self.configuredLiveUsageReader
         let modelReader = self.modelReader
         let wrapperReader = self.wrapperReader
+        let selectedCLIURL = self.selectedCLIURL
 
-        async let cli = Task.detached { cliResolver.resolve() }.value
-        async let usage = Task.detached {
-            Self.resolveUsage(live: liveUsageReader, local: usageReader)
+        async let cli = Task.detached {
+            cliResolver.resolve(preferredExecutableURL: selectedCLIURL)
         }.value
         async let model = Task.detached { modelReader.readLatestObservation() }.value
         async let wrapper = Task.detached { wrapperReader.readWrapperConfiguration() }.value
 
-        let (resolvedCLI, accountUsage, observedModel, wrapperConfiguration) =
-            await (cli, usage, model, wrapper)
+        let resolvedCLI = await cli
+        let liveUsageReader = configuredLiveUsageReader ?? Self.makeLiveUsageReader(for: resolvedCLI)
+        async let usage = Task.detached {
+            Self.resolveUsage(live: liveUsageReader, local: usageReader)
+        }.value
+
+        let (usageResolution, observedModel, wrapperConfiguration) = await (usage, model, wrapper)
 
         // If a newer refresh started or the SwiftUI task was cancelled while
         // readers were working, discard this older result rather than
         // overwriting fresher state.
         guard refreshGeneration == generation, !Task.isCancelled else { return }
 
+        if selectedCLIURL != nil, resolvedCLI.discoverySource != .selected {
+            self.selectedCLIURL = nil
+            cliSelectionStore.save(nil)
+        }
         snapshot = DashboardSnapshot(
             cli: resolvedCLI,
-            accountUsage: accountUsage,
+            accountUsage: usageResolution.result,
             observedModel: observedModel,
             wrapper: wrapperConfiguration,
             refreshedAt: Date()
         )
+        liveUsageStatus = usageResolution.status
+    }
+
+    func searchAgain() async {
+        guard let currentSnapshot = snapshot else {
+            await refresh()
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let selectedCLIURL = self.selectedCLIURL
+            let cliResolver = self.cliResolver
+            let usageReader = self.usageReader
+            let configuredLiveUsageReader = self.configuredLiveUsageReader
+            let resolvedCLI = await Task.detached {
+                cliResolver.resolve(preferredExecutableURL: selectedCLIURL)
+            }.value
+            let liveReader = configuredLiveUsageReader ?? Self.makeLiveUsageReader(for: resolvedCLI)
+            let usageResolution = await Task.detached {
+                Self.resolveUsage(live: liveReader, local: usageReader)
+            }.value
+
+            guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+            if selectedCLIURL != nil, resolvedCLI.discoverySource != .selected {
+                self.selectedCLIURL = nil
+                self.cliSelectionStore.save(nil)
+            }
+            self.snapshot = DashboardSnapshot(
+                cli: resolvedCLI,
+                accountUsage: usageResolution.result,
+                observedModel: currentSnapshot.observedModel,
+                wrapper: currentSnapshot.wrapper,
+                refreshedAt: Date()
+            )
+            self.liveUsageStatus = usageResolution.status
+        }
+    }
+
+    func chooseExecutable(_ url: URL) async {
+        selectedCLIURL = url.standardizedFileURL
+        cliSelectionStore.save(selectedCLIURL)
+        await searchAgain()
+    }
+
+    func refreshAccountUsage() async {
+        guard let currentSnapshot = snapshot else {
+            await refresh()
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let liveReader = self.configuredLiveUsageReader
+                ?? Self.makeLiveUsageReader(for: currentSnapshot.cli)
+            let usageReader = self.usageReader
+            let usageResolution = await Task.detached {
+                Self.resolveUsage(live: liveReader, local: usageReader)
+            }.value
+            guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+            self.snapshot = DashboardSnapshot(
+                cli: currentSnapshot.cli,
+                accountUsage: usageResolution.result,
+                observedModel: currentSnapshot.observedModel,
+                wrapper: currentSnapshot.wrapper,
+                refreshedAt: Date()
+            )
+            self.liveUsageStatus = usageResolution.status
+        }
+    }
+
+    func rescanXcode() async {
+        guard let currentSnapshot = snapshot else {
+            await refresh()
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let wrapperReader = self.wrapperReader
+            let wrapper = await Task.detached {
+                wrapperReader.readWrapperConfiguration()
+            }.value
+            guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+            self.snapshot = DashboardSnapshot(
+                cli: currentSnapshot.cli,
+                accountUsage: currentSnapshot.accountUsage,
+                observedModel: currentSnapshot.observedModel,
+                wrapper: wrapper,
+                refreshedAt: Date()
+            )
+        }
+    }
+
+    private func performFocusedRefresh(_ operation: (UInt) async -> Void) async {
+        guard !isRefreshing else { return }
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
+        isRefreshing = true
+        defer {
+            if refreshGeneration == generation {
+                isRefreshing = false
+            }
+        }
+        await operation(generation)
+    }
+
+    private nonisolated static func makeLiveUsageReader(
+        for installation: KiroCLIInstallation
+    ) -> KiroUsageLiveReader? {
+        guard installation.availability == .ready,
+              let executableURL = installation.executableURL else {
+            return nil
+        }
+        return KiroUsageLiveReader(cliExecutableURL: executableURL)
     }
 
     /// Attempts a live usage fetch first, falling back to local log if it
     /// fails. Runs off MainActor.
+    private struct UsageResolution: Sendable {
+        let result: Result<KiroAccountUsage, ReaderError>
+        let status: KiroLiveUsageStatus
+    }
+
     private nonisolated static func resolveUsage(
         live: KiroUsageLiveReader?,
         local: KiroUsageReader
-    ) -> Result<KiroAccountUsage, ReaderError> {
+    ) -> UsageResolution {
         if let live {
             let liveResult = live.fetchLiveUsage()
             switch liveResult {
@@ -170,7 +293,7 @@ final class DashboardViewModel {
                 // Convert to KiroAccountUsage with .liveCLI source.
                 // sourceURL is nil because there is no backing file for
                 // live CLI responses.
-                return .success(KiroAccountUsage(
+                return UsageResolution(result: .success(KiroAccountUsage(
                     used: liveUsage.used,
                     limit: liveUsage.limit,
                     currentOverages: nil,
@@ -180,15 +303,37 @@ final class DashboardViewModel {
                     observedAt: liveUsage.observedAt,
                     sourceURL: nil,
                     source: .liveCLI
-                ))
-            case .failure:
-                // Fall through to local reader
-                break
+                )), status: .ready)
+            case .failure(let error):
+                return UsageResolution(
+                    result: local.readLatestUsage(),
+                    status: status(for: error)
+                )
             }
         }
 
-        // Fallback: local q-client.log reader (source is already .localLog)
-        return local.readLatestUsage()
+        return UsageResolution(result: local.readLatestUsage(), status: .cliUnavailable)
+    }
+
+    private nonisolated static func status(
+        for error: KiroUsageLiveReader.LiveReaderError
+    ) -> KiroLiveUsageStatus {
+        switch error {
+        case .cliNotExecutable:
+            return .cliUnavailable
+        case .notLoggedIn:
+            return .authenticationRequired
+        case .sessionExpired:
+            return .sessionExpired
+        case .timeout:
+            return .timedOut
+        case .permissionDenied:
+            return .permissionDenied
+        case .commandFailed:
+            return .commandFailed
+        case .parseFailed:
+            return .parseFailed
+        }
     }
 
     /// Freshness classification for the current usage observation, if any.
@@ -220,15 +365,21 @@ final class DashboardViewModel {
         lines.append("")
 
         lines.append("CLI")
-        lines.append("  Executable: \(redactor.redact(snapshot.cli.executableURL))")
+        if let executableURL = snapshot.cli.executableURL {
+            lines.append("  Executable: \(redactor.redact(executableURL))")
+        } else {
+            lines.append("  Executable: not found")
+        }
         if let resolved = snapshot.cli.resolvedExecutableURL {
             lines.append("  Resolved target: \(redactor.redact(resolved))")
         }
+        lines.append("  Discovery state: \(Self.describe(snapshot.cli.availability))")
         lines.append("  Executable permission: \(snapshot.cli.isExecutable)")
         lines.append("  Version: \(snapshot.cli.version ?? "unknown")")
         lines.append("")
 
         lines.append("Account usage")
+        lines.append("  Live state: \(Self.describe(liveUsageStatus))")
         switch snapshot.accountUsage {
         case .success(let usage):
             lines.append("  Source: \(Self.describeUsageSource(usage.source))")
@@ -291,6 +442,42 @@ final class DashboardViewModel {
             return "live Kiro CLI"
         case .localLog:
             return "local log (fallback)"
+        }
+    }
+
+    private static func describe(_ availability: KiroCLIAvailability) -> String {
+        switch availability {
+        case .ready:
+            return "ready"
+        case .notFound:
+            return "not found"
+        case .notExecutable:
+            return "not executable"
+        case .launchFailed(let reason):
+            return "launch failed (\(reason))"
+        }
+    }
+
+    private static func describe(_ status: KiroLiveUsageStatus) -> String {
+        switch status {
+        case .notAttempted:
+            return "not attempted"
+        case .ready:
+            return "ready"
+        case .cliUnavailable:
+            return "CLI unavailable"
+        case .authenticationRequired:
+            return "authentication required"
+        case .sessionExpired:
+            return "session expired"
+        case .timedOut:
+            return "timed out"
+        case .permissionDenied:
+            return "permission denied"
+        case .commandFailed:
+            return "command failed"
+        case .parseFailed:
+            return "parse failed"
         }
     }
 

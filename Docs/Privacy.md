@@ -4,18 +4,19 @@ ACP Control Center is a local-only macOS menu bar utility. This document
 describes exactly what data it accesses, how it handles that data, and what
 network activity it initiates.
 
-## Local paths accessed (read-only)
+## Local paths accessed
 
 | Path | What is read | What is discarded |
 |------|-------------|-------------------|
-| `~/.local/bin/kiro-cli` | Existence, executable bit, `--version` output | — |
+| Selected path, `~/.local/bin/kiro-cli`, `/opt/homebrew/bin/kiro-cli`, `/usr/local/bin/kiro-cli`, `PATH` entries, and known Kiro app-bundle locations | Existence, executable bit, `--version` output | — |
 | `~/Library/Application Support/Kiro/logs/**/q-client.log` | Usage fields: `currentUsage`, `usageLimit`, `currentOverages`, `subscriptionTitle`, `overageStatus`, `nextDateReset` | Profile ARNs, user IDs, request IDs, emails, prompts, conversation content |
 | `~/.kiro/logs/*/kiro.log` | Model ID, agent mode, origin, client name | Conversation IDs (logged structurally but never retained), turn IDs, prompts, file paths |
 | `~/Library/Developer/Xcode/CodingAssistant/ACP/*.plist` | Wrapper executable path | All other plist fields |
 | ACP wrapper script (path from plist) | Model flag, effort flag, syntax validity | Script body (parsed as text, never executed) |
 
-All readers accept injected paths in their initializers so tests never touch
-real user data.
+CLI discovery checks only this bounded candidate list; it never recursively
+scans arbitrary directories. All readers accept injected paths in their
+initializers so tests never touch real user data.
 
 ## Network activity
 
@@ -65,8 +66,10 @@ disk until the operating system's periodic temp-directory cleanup removes it.
 Captured reads from these files are bounded to 1 MiB per stream; larger
 output is truncated with a clear marker.
 
-The app does **not** persist durable state, analytics, caches, databases, or
-preferences files to disk.
+The app does **not** persist analytics, caches, databases, credentials, or
+process output. If the user chooses an executable manually, the standardized
+path string is stored in the app's `UserDefaults` so it can be reused after a
+restart. No executable content or authentication material is copied.
 
 ## Diagnostic output
 
@@ -99,7 +102,8 @@ internally.
 ## Data retention
 
 The app retains parsed structural values only in ephemeral in-memory state
-(`DashboardSnapshot`). Nothing is durably persisted to disk — no caches,
-databases, preferences files, or analytics. Transient process output files
-are removed immediately after use (see above). When the app quits, all
-in-memory state is discarded.
+(`DashboardSnapshot`). The sole durable value is the optional user-selected
+Kiro CLI executable path in `UserDefaults`; it is replaced or cleared by later
+CLI selection or discovery actions. There are no caches, databases, analytics,
+or credential stores. Transient process output files are removed immediately
+after use (see above). When the app quits, all in-memory state is discarded.

@@ -24,7 +24,7 @@ Sources/ACPControlCenter/
   DashboardView.swift               SwiftUI dashboard popover
   DashboardViewModel.swift          Composes readers, formats menu bar label
   DomainModels.swift                Value types and ReaderError
-  KiroCLIResolver.swift             Resolves kiro-cli path/version
+  KiroCLIResolver.swift             Bounded discovery, selected path, version
   KiroUsageReader.swift             Local q-client.log reader (fallback)
   KiroUsageLiveReader.swift         Live CLI /usage reader (primary)
   KiroModelObservationReader.swift  Latest model/agent observation
@@ -38,20 +38,24 @@ Sources/ACPControlCenter/
 
 ```mermaid
 flowchart TD
-    A[Refresh triggered] --> B{liveUsageReader configured?}
-    B -- yes --> C[kiro-cli chat --no-interactive '/usage']
-    C --> D{Success within 20 s?}
-    D -- yes --> E[Use live result, source = .liveCLI]
-    D -- no --> F[Fall back to local q-client.log]
-    B -- no --> F
-    F --> G[Parse most recent valid log line, source = .localLog]
+    A[Refresh triggered] --> B[Resolve selected path and bounded candidates]
+    B --> C{Executable ready?}
+    C -- yes --> D[kiro-cli chat --no-interactive '/usage']
+    D --> E{Success within 20 s?}
+    E -- yes --> F[Use live result, source = .liveCLI]
+    E -- no --> G[Classify recovery state]
+    C -- no --> G
+    G --> H[Fall back to local q-client.log]
+    H --> I[Parse most recent valid line, source = .localLog]
 ```
 
 The live reader executes a bounded `Process` with a 20-second timeout. On
 success the dashboard shows "Live from Kiro CLI" with the current timestamp.
 On any failure (CLI missing, user not logged in, timeout, malformed output),
 the local log reader provides stale-but-available data with a clear "Local
-log (fallback)" indicator and the original observation timestamp.
+log (fallback)" indicator and the original observation timestamp. The UI keeps
+authentication-required, expired-session, timeout, permission, command, and
+parse failures distinct so the recovery action remains specific.
 
 ## Reader resource boundaries
 
@@ -88,6 +92,8 @@ This is the read-only MVP (Slices 1–3). The app:
 
 - **Reads** local log files, plist configuration, and wrapper script text.
 - **Invokes** `kiro-cli --version` and `kiro-cli chat --no-interactive '/usage'`.
+- **Persists** only a manually selected Kiro CLI executable path in app
+  `UserDefaults`.
 - **Syntax-checks** the wrapper via `/bin/zsh -n` (does not execute it).
 - **Never writes** to any Kiro, Xcode, or wrapper file.
 - **Never opens** Kiro IDE or submits prompts.

@@ -85,6 +85,49 @@ struct DashboardViewModelTests {
     }
 
     @Test
+    func focusedRefreshActionsPreserveUnrelatedSnapshotSections() async throws {
+        let (viewModel, usageRoot, modelRoot) = try makeViewModel()
+        defer {
+            try? FileManager.default.removeItem(at: usageRoot)
+            try? FileManager.default.removeItem(at: modelRoot)
+        }
+        await viewModel.refresh()
+        guard let initial = viewModel.snapshot,
+              case .success(let initialModel) = initial.observedModel else {
+            Issue.record("Expected initial snapshot and model observation")
+            return
+        }
+
+        await viewModel.searchAgain()
+        #expect(viewModel.snapshot?.cli == initial.cli)
+        guard case .success(let modelAfterSearch) = viewModel.snapshot?.observedModel else {
+            Issue.record("Search should preserve the model observation")
+            return
+        }
+        #expect(modelAfterSearch == initialModel)
+
+        await viewModel.refreshAccountUsage()
+        #expect(viewModel.snapshot?.cli == initial.cli)
+        guard case .success(let modelAfterUsage) = viewModel.snapshot?.observedModel else {
+            Issue.record("Usage refresh should preserve the model observation")
+            return
+        }
+        #expect(modelAfterUsage == initialModel)
+
+        await viewModel.rescanXcode()
+        #expect(viewModel.snapshot?.cli == initial.cli)
+        guard case .success(let modelAfterRescan) = viewModel.snapshot?.observedModel else {
+            Issue.record("Xcode rescan should preserve the model observation")
+            return
+        }
+        #expect(modelAfterRescan == initialModel)
+        guard case .failure(.missing) = viewModel.snapshot?.wrapper else {
+            Issue.record("Expected the missing ACP wrapper state to remain explicit")
+            return
+        }
+    }
+
+    @Test
     func diagnosticSummaryExcludesSensitiveFieldsAndIncludesStructuralState() async throws {
         let (viewModel, usageRoot, modelRoot) = try makeViewModel()
         defer {

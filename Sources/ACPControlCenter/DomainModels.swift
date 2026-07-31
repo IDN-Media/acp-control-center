@@ -13,10 +13,24 @@ enum ReaderError: Error, Equatable, Sendable {
 
 // MARK: - CLI resolution
 
+enum KiroCLIDiscoverySource: String, Equatable, Sendable {
+    case selected
+    case knownLocation
+}
+
+enum KiroCLIAvailability: Equatable, Sendable {
+    case ready
+    case notFound
+    case notExecutable
+    case launchFailed(reason: String)
+}
+
 struct KiroCLIInstallation: Equatable, Sendable {
-    let executableURL: URL
+    let executableURL: URL?
     let resolvedExecutableURL: URL?
     let version: String?
+    let discoverySource: KiroCLIDiscoverySource?
+    let availability: KiroCLIAvailability
     let isExecutable: Bool
 }
 
@@ -58,6 +72,18 @@ enum UsageSource: Equatable, Sendable {
     case liveCLI
     /// Fallback data parsed from local `q-client.log` files.
     case localLog
+}
+
+enum KiroLiveUsageStatus: Equatable, Sendable {
+    case notAttempted
+    case ready
+    case cliUnavailable
+    case authenticationRequired
+    case sessionExpired
+    case timedOut
+    case permissionDenied
+    case commandFailed
+    case parseFailed
 }
 
 struct KiroAccountUsage: Equatable, Sendable {
