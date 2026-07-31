@@ -188,15 +188,23 @@ struct ManagedWrapperFileInfo: Equatable, Sendable {
 
         // POSIX lstat distinguishes a genuinely absent path from an
         // inspection failure and never follows the final symbolic link.
+        // ENOTDIR means an ancestor component exists but is not a directory —
+        // the canonical destination cannot be safely created, so it must be
+        // reported as an inspection failure, not as "absent".
         var status = stat()
         let result = path.withCString { lstat($0, &status) }
         guard result == 0 else {
             let code = errno
-            if code == ENOENT || code == ENOTDIR {
+            if code == ENOENT {
                 return .absent
             }
+            // ENOTDIR: an ancestor component exists but is not a directory,
+            // so the target itself cannot exist. It must still fail closed
+            // (not "absent and safe") because the canonical destination
+            // cannot be created at all.
             return makeInvalid(
-                reason: .inspectionFailed(reason: String(cString: strerror(code)))
+                reason: .inspectionFailed(reason: String(cString: strerror(code))),
+                entryExists: code == ENOTDIR ? false : true
             )
         }
 
@@ -261,13 +269,14 @@ struct ManagedWrapperFileInfo: Equatable, Sendable {
 
     private static func makeInvalid(
         reason: ManagedArtifactInvalidReason,
+        entryExists: Bool = true,
         isSymlink: Bool = false,
         isExec: Bool = false,
         hasMarker: Bool = false,
         parsesACP: Bool = false
     ) -> ManagedWrapperFileInfo {
         ManagedWrapperFileInfo(
-            entryExists: true,
+            entryExists: entryExists,
             isSymbolicLink: isSymlink,
             isExecutableRegularFile: isExec,
             hasOwnershipMarker: hasMarker,

@@ -141,6 +141,59 @@ struct ACPWrapperReaderTests {
     }
 
     @Test
+    func unreadableExistingACPDirectoryIsNotNoProvider() throws {
+        // A directory that exists but cannot be enumerated must not be
+        // presented as "no provider": configuration exists but is invisible.
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: root.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path) }
+
+        let reader = ACPWrapperReader(acpDirectory: root)
+        let observation = reader.readProviderObservation()
+        guard case .wrapperInvalid = observation else {
+            Issue.record("Expected .wrapperInvalid for unreadable existing ACP directory, got \(observation)")
+            return
+        }
+    }
+
+    @Test
+    func malformedPlistIsNotNoProvider() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let plistURL = root.appendingPathComponent("BAD-ACP.plist")
+        try "this is not a plist".write(to: plistURL, atomically: true, encoding: .utf8)
+
+        let reader = ACPWrapperReader(acpDirectory: root)
+        let observation = reader.readProviderObservation()
+        guard case .wrapperInvalid = observation else {
+            Issue.record("Expected .wrapperInvalid for malformed plist, got \(observation)")
+            return
+        }
+    }
+
+    @Test
+    func plistWithoutAgentIsNotNoProvider() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let plistURL = root.appendingPathComponent("NOAGENT-ACP.plist")
+        let data = try PropertyListSerialization.data(fromPropertyList: ["name": "kiro"], format: .xml, options: 0)
+        try data.write(to: plistURL)
+
+        let reader = ACPWrapperReader(acpDirectory: root)
+        let observation = reader.readProviderObservation()
+        guard case .wrapperInvalid = observation else {
+            Issue.record("Expected .wrapperInvalid for plist without agent, got \(observation)")
+            return
+        }
+    }
+
+    @Test
     func parserIgnoresCommentsAndKeepsFlagsOnSelectedInvocation() {
         let contents = """
         # exec "/old/kiro-cli" acp --model old-model

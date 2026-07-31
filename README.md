@@ -1,5 +1,5 @@
 # ACP Control Center
-<h2 align="center"><img src="ss.png" width="80%"></h2>
+<h2 align="center"><img src="ss.png" width="480" alt="ACP Control Center menu bar app"></h2>
 
 An unofficial macOS menu bar app (SwiftUI `MenuBarExtra`) providing local ACP
 observability and a preview-first managed-wrapper workflow — currently

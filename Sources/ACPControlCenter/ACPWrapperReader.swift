@@ -35,8 +35,9 @@ struct ACPWrapperReader: Sendable {
     /// is a directory, etc.), this classifies as `.wrapperInvalid` with a
     /// safe human-readable reason, not `.configuredPathMissing`.
     func readProviderObservation() -> ACPProviderObservation {
-        guard let wrapperURL = resolveWrapperURL() else {
-            return .noProvider
+        let providerObservation = resolveProviderObservation()
+        guard case .configuredPathMissing(let wrapperURL) = providerObservation else {
+            return providerObservation
         }
 
         let fm = FileManager.default
@@ -146,14 +147,34 @@ struct ACPWrapperReader: Sendable {
     // MARK: - Plist resolution
 
     /// Reads the first `.plist` in the ACP directory and extracts its
-    /// `agent` string as a file URL.
-    private func resolveWrapperURL() -> URL? {
-        guard let entries = try? FileManager.default.contentsOfDirectory(
-            at: acpDirectory,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ) else {
-            return nil
+    /// `agent` string as a file URL. Fail-closed: an unreadable ACP
+    /// directory, an unreadable plist, a malformed plist, or a plist with an
+    /// empty/missing agent are reported as `.wrapperInvalid` (with a
+    /// structured reason) so the UI never misleads the user into believing
+    /// there is no provider at all when configuration actually exists but
+    /// cannot be inspected.
+    private func resolveProviderObservation() -> ACPProviderObservation {
+        let entries: [URL]
+        do {
+            entries = try FileManager.default.contentsOfDirectory(
+                at: acpDirectory,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+        } catch {
+            // Directory missing or unreadable. A missing directory is a
+            // legitimate "no provider" (nothing configured yet); an
+            // unreadable existing directory is a configuration we cannot
+            // inspect and must not present as "no provider".
+            var isDirectory: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: acpDirectory.path, isDirectory: &isDirectory)
+            if exists, isDirectory.boolValue {
+                return .wrapperInvalid(
+                    wrapperURL: acpDirectory,
+                    reason: "ACP provider directory exists but cannot be read: \(error.localizedDescription)"
+                )
+            }
+            return .noProvider
         }
 
         let plistURLs = entries
@@ -162,11 +183,27 @@ struct ACPWrapperReader: Sendable {
 
         var candidates: [(isKiro: Bool, agentURL: URL)] = []
         for plistURL in plistURLs {
-            guard let data = try? Data(contentsOf: plistURL) else { continue }
-            guard let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any] else {
-                continue
+            let data: Data
+            do {
+                data = try Data(contentsOf: plistURL)
+            } catch {
+                return .wrapperInvalid(
+                    wrapperURL: plistURL,
+                    reason: "ACP provider plist exists but cannot be read: \(error.localizedDescription)"
+                )
             }
-            guard let agentPath = plist["agent"] as? String, !agentPath.isEmpty else { continue }
+            guard let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any] else {
+                return .wrapperInvalid(
+                    wrapperURL: plistURL,
+                    reason: "ACP provider plist is malformed"
+                )
+            }
+            guard let agentPath = plist["agent"] as? String, !agentPath.isEmpty else {
+                return .wrapperInvalid(
+                    wrapperURL: plistURL,
+                    reason: "ACP provider plist has no valid agent path"
+                )
+            }
 
             let name = (plist["name"] as? String)?.lowercased() ?? ""
             let isKiro = name.contains("kiro") || agentPath.lowercased().contains("kiro")
@@ -176,7 +213,9 @@ struct ACPWrapperReader: Sendable {
         // Prefer an explicitly Kiro-named ACP definition. If no provider can
         // be identified, deterministic filename ordering provides a stable
         // fallback rather than relying on filesystem enumeration order.
-        return candidates.first(where: \.isKiro)?.agentURL ?? candidates.first?.agentURL
+        return candidates.first(where: \.isKiro).map { .configuredPathMissing(configuredPath: $0.agentURL) }
+            ?? candidates.first.map { .configuredPathMissing(configuredPath: $0.agentURL) }
+            ?? .noProvider
     }
 
     // MARK: - Wrapper text parsing

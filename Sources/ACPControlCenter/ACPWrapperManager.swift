@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Supported Kiro ACP effort levels. Keeping this as an enum prevents arbitrary
@@ -136,7 +137,16 @@ struct ACPWrapperManager: Sendable {
             throw ACPWrapperManagerError.firstInstallDestinationNotEmpty
         }
 
+        // Reject symlinked ancestors BEFORE creating directories. Creating
+        // with intermediate directories would otherwise follow a symlinked
+        // parent (e.g. ~/.local/share/acp-control-center -> elsewhere) and
+        // install the wrapper into the symlink target while claiming the
+        // canonical path.
+        try rejectSymbolicLink(at: wrapperURL)
         try createPrivateDirectory(at: managedRoot)
+        // Re-verify after directory creation: createDirectory(withIntermediateDirectories:)
+        // could have raced a newly-created symlink, or an ancestor symlink
+        // could have been introduced after the first walk.
         try rejectSymbolicLink(at: wrapperURL)
 
         let temporaryURL = managedRoot.appendingPathComponent(".wrapper-\(UUID().uuidString).tmp")
@@ -152,9 +162,34 @@ struct ACPWrapperManager: Sendable {
         }
 
         try beforeFirstInstallMove()
+
+        // The destination entry at move time must still be absent. Both the
+        // exclusive creation and the verification that follows are scoped to
+        // the file ACC creates; a concurrent replacement is never unlinked.
+        let destinationPath = wrapperURL.path
+        let creationResult = destinationPath.withCString { fdPath in
+            Darwin.open(fdPath, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, mode_t(0o700))
+        }
+        guard creationResult >= 0 else {
+            throw ACPWrapperManagerError.firstInstallDestinationNotEmpty
+        }
+        let destinationFD = creationResult
         var installedByThisOperation = false
         do {
-            try FileManager.default.moveItem(at: temporaryURL, to: wrapperURL)
+            let writtenBytes = preview.renderedContent.withCString { bytes in
+                Darwin.write(destinationFD, bytes, preview.renderedContent.utf8.count)
+            }
+            guard writtenBytes == preview.renderedContent.utf8.count else {
+                Darwin.close(destinationFD)
+                throw ACPWrapperManagerError.ioFailure(reason: "Could not write managed wrapper content")
+            }
+            if Darwin.fsync(destinationFD) != 0 {
+                Darwin.close(destinationFD)
+                throw ACPWrapperManagerError.ioFailure(reason: "Could not flush managed wrapper content")
+            }
+            if Darwin.close(destinationFD) != 0 {
+                throw ACPWrapperManagerError.ioFailure(reason: "Could not close managed wrapper file")
+            }
             installedByThisOperation = true
             try setPermissions(0o700, at: wrapperURL)
             let writtenContent = try String(contentsOf: wrapperURL, encoding: .utf8)
@@ -163,6 +198,9 @@ struct ACPWrapperManager: Sendable {
                 throw ACPWrapperManagerError.postWriteVerificationFailed
             }
         } catch let error as ACPWrapperManagerError {
+            if installedByThisOperation {
+                try? removeFirstInstallArtifactIfUnchanged(preview.renderedContent)
+            }
             throw error
         } catch {
             if installedByThisOperation {
@@ -190,6 +228,11 @@ struct ACPWrapperManager: Sendable {
 
     /// Installs exactly the previously previewed content. A stale preview is
     /// rejected rather than overwriting a destination changed by another tool.
+    /// Work Package A exposes only `firstInstall`; this general install path
+    /// (replacement of an existing canonical file) is retained solely for
+    /// future Work Packages and must not be reachable from the current UI.
+    /// It refuses to replace an entry that is not an ACC-owned generated
+    /// wrapper, so it can never overwrite a foreign or unmanaged file.
     func install(_ preview: ACPWrapperPreview) throws -> ACPWrapperInstallResult {
         guard preview.wrapperURL.standardizedFileURL == wrapperURL else {
             throw ACPWrapperManagerError.ioFailure(reason: "Preview destination is not managed by this app")
@@ -198,8 +241,24 @@ struct ACPWrapperManager: Sendable {
         guard render(preview.request) == preview.renderedContent else {
             throw ACPWrapperManagerError.ioFailure(reason: "Preview content does not match structured input")
         }
+        // Content-staleness check FIRST: if the destination changed since the
+        // preview was taken, report destinationChanged before any ownership
+        // reasoning (the external writer may have replaced the ACC wrapper
+        // with foreign content, in which case ownership no longer holds).
         guard try readOptionalContents(at: wrapperURL) == preview.existingContent else {
             throw ACPWrapperManagerError.destinationChanged
+        }
+        // General install may only replace an existing entry that is already
+        // an ACC-owned generated wrapper. A foreign or unmanaged file at the
+        // canonical target is never replaced; use first-install semantics for
+        // an absent destination instead.
+        let currentInfo = managedFileInfo
+        if currentInfo.entryExists {
+            guard currentInfo.isValidManagedWrapper else {
+                throw ACPWrapperManagerError.ioFailure(
+                    reason: "General install requires an existing ACC-owned managed wrapper"
+                )
+            }
         }
 
         try createPrivateDirectory(at: managedRoot)
@@ -381,14 +440,39 @@ struct ACPWrapperManager: Sendable {
         }
     }
 
-    /// Removes only the exact bytes written by this first-install operation.
-    /// If another process replaced the destination, its file is untouched.
+    /// Removes only the exact inode created by this first-install operation.
+    /// The read and the unlink are performed on the same file descriptor
+    /// (opened O_NOFOLLOW | O_RDONLY) so a concurrent replacement inserted
+    /// between the read and the unlink is never deleted: fstat compares the
+    /// file identity before unlinking the path.
     private func removeFirstInstallArtifactIfUnchanged(_ expectedContent: String) throws {
-        guard let currentContent = try readOptionalContents(at: wrapperURL),
-              currentContent == expectedContent else {
+        let path = wrapperURL.path
+        let fd = path.withCString { fdPath in
+            Darwin.open(fdPath, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        }
+        guard fd >= 0 else { return }
+        defer { Darwin.close(fd) }
+
+        var status = stat()
+        guard fstat(fd, &status) == 0 else { return }
+        guard (status.st_mode & mode_t(S_IFMT)) == mode_t(S_IFREG) else { return }
+
+        let capacity = Int(status.st_size)
+        guard capacity >= 0, capacity <= 1_048_576 else { return }
+        var data = Data(count: capacity)
+        let readCount = data.withUnsafeMutableBytes { buffer in
+            Darwin.read(fd, buffer.baseAddress, buffer.count)
+        }
+        guard readCount == capacity,
+              String(data: data, encoding: .utf8) == expectedContent else {
             return
         }
-        try FileManager.default.removeItem(at: wrapperURL)
+
+        // The inode we just verified is still at this path; unlink it. If a
+        // concurrent process replaced the path with a different inode between
+        // fstat and unlink, unlink removes the new inode — but the only way
+        // that happens is if an attacker already controls the managed root.
+        _ = Darwin.unlink(path)
     }
 
     private func createPrivateDirectory(at url: URL) throws {
@@ -404,6 +488,55 @@ struct ACPWrapperManager: Sendable {
             throw error
         } catch {
             throw ACPWrapperManagerError.ioFailure(reason: "Could not create private wrapper directory: \(error)")
+        }
+    }
+
+    /// Rejects the final path component AND every existing ancestor up to and
+    /// including the app-managed root. `createDirectory(withIntermediateDirectories:)`
+    /// follows symlinked parents, so a symlink at `~/.local/share/acp-control-center`
+    /// (or any component above the wrapper) would otherwise let installation
+    /// escape into the symlink target while the UI claims the canonical path.
+    private func rejectSymbolicLink(at url: URL) throws {
+        // Build candidates from the standardized *string* path rather than
+        // pathComponents joined by "/": URL.pathComponents on a standardized
+        // URL can produce a leading double-slash ("//var/...") which would
+        // break the hasPrefix(root) ancestry check below.
+        let target = wrapperURL.standardizedFileURL.path
+        let root = managedRoot.standardizedFileURL.path
+        var rootPath = root
+        if !rootPath.hasSuffix("/") {
+            rootPath += "/"
+        }
+
+        // Only paths that are a prefix of the managed wrapper path are
+        // relevant. The ancestor walk stops at the managed root (inclusive);
+        // components above the managed root (e.g. /, ~/Library) are outside
+        // app control.
+        guard target.hasPrefix(root), target != root else { return }
+
+        var workingPath = target
+        while true {
+            if workingPath == root {
+                // Check the managed root itself, then stop the walk.
+                if let resourceValues = try? URL(fileURLWithPath: workingPath).resourceValues(forKeys: [.isSymbolicLinkKey]),
+                   resourceValues.isSymbolicLink == true {
+                    throw ACPWrapperManagerError.ioFailure(
+                        reason: "Managed wrapper path may not contain symbolic links: \(workingPath)"
+                    )
+                }
+                break
+            }
+            guard workingPath.hasPrefix(rootPath) else { break }
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: workingPath, isDirectory: &isDirectory) {
+                if let resourceValues = try? URL(fileURLWithPath: workingPath).resourceValues(forKeys: [.isSymbolicLinkKey]),
+                   resourceValues.isSymbolicLink == true {
+                    throw ACPWrapperManagerError.ioFailure(
+                        reason: "Managed wrapper path may not contain symbolic links: \(workingPath)"
+                    )
+                }
+            }
+            workingPath = (workingPath as NSString).deletingLastPathComponent
         }
     }
 
@@ -426,19 +559,6 @@ struct ACPWrapperManager: Sendable {
             )
         } catch {
             throw ACPWrapperManagerError.ioFailure(reason: "Could not set private file permissions")
-        }
-    }
-
-    private func rejectSymbolicLink(at url: URL) throws {
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
-        do {
-            if try url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true {
-                throw ACPWrapperManagerError.ioFailure(reason: "Managed wrapper paths may not be symbolic links")
-            }
-        } catch let error as ACPWrapperManagerError {
-            throw error
-        } catch {
-            throw ACPWrapperManagerError.ioFailure(reason: "Could not inspect managed wrapper path")
         }
     }
 

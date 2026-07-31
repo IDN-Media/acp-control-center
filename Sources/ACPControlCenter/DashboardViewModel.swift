@@ -25,6 +25,7 @@ final class DashboardViewModel {
     private var refreshGeneration: UInt = 0
     private var hasStartedInitialRefresh: Bool = false
     private var selectedCLIURL: URL?
+    private var providerObservation: ACPProviderObservation = .noProvider
 
     private let cliResolver: KiroCLIResolver
     private let usageReader: KiroUsageReader
@@ -164,6 +165,7 @@ final class DashboardViewModel {
         }.value
 
         let (usageResolution, observedModel, providerObservation) = await (usage, model, providerObs)
+        self.providerObservation = providerObservation
 
         guard refreshGeneration == generation, !Task.isCancelled else { return }
 
@@ -187,6 +189,20 @@ final class DashboardViewModel {
         let fileInfo = wrapperManager.managedFileInfo
         managedWrapperExists = fileInfo.isValidManagedWrapper
         lifecycleContext = ACPWrapperLifecycleClassifier.classify(
+            observation: providerObservation,
+            managedFileInfo: fileInfo,
+            managedWrapperURL: wrapperManager.wrapperURL
+        )
+    }
+
+    /// Reclassifies the lifecycle from the most recently read provider
+    /// observation and a fresh managed-file inspection. Used after an
+    /// install so the UI reflects the true post-install state instead of a
+    /// synthetic context.
+    private func classifiedLifecycleContext() -> ACPWrapperLifecycleContext {
+        let fileInfo = wrapperManager.managedFileInfo
+        managedWrapperExists = fileInfo.isValidManagedWrapper
+        return ACPWrapperLifecycleClassifier.classify(
             observation: providerObservation,
             managedFileInfo: fileInfo,
             managedWrapperURL: wrapperManager.wrapperURL
@@ -363,15 +379,13 @@ final class DashboardViewModel {
                 guard self.refreshGeneration == generation, !Task.isCancelled else { return }
                 self.managedWrapperExists = manager.managedWrapperExists
                 self.wrapperPreview = nil
-                self.wrapperManagerStatus = .installed
-                // After first install, Xcode is not yet pointing at the
-                // managed wrapper. Transition to inactive to prompt the user
-                // to configure Xcode manually.
-                self.lifecycleContext = ACPWrapperLifecycleContext(
-                    state: .managedWrapperInactive,
-                    activeConfiguration: nil,
-                    configuredPath: self.lifecycleContext.configuredPath,
-                    managedWrapperAvailable: true
+                // Reclassify from fresh provider observation + managed-file info
+                // rather than hard-coding a synthetic context. This keeps the
+                // post-install state truthful if a concurrent process removed
+                // or replaced the wrapper between install and refresh.
+                self.lifecycleContext = self.classifiedLifecycleContext()
+                self.wrapperManagerStatus = self.managedWrapperExists ? .installed : .failed(
+                    message: "Wrapper installed but is no longer valid at the managed path."
                 )
             } catch {
                 guard self.refreshGeneration == generation else { return }

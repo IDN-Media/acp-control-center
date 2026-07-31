@@ -70,9 +70,9 @@ struct ACPWrapperManagerTests {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let manager = ACPWrapperManager(managedRoot: root)
-        let preview = try manager.preview(makeRequest())
+        let preview = try manager.firstInstallPreview(makeRequest())
 
-        let result = try manager.install(preview)
+        let result = try manager.firstInstall(preview)
 
         #expect(result.wrapperURL == preview.wrapperURL)
         #expect(result.backupURL == nil)
@@ -98,7 +98,9 @@ struct ACPWrapperManagerTests {
             managedRoot: root,
             now: { Date(timeIntervalSince1970: 1_700_000_000) }
         )
-        let first = try manager.install(manager.preview(makeRequest(modelID: "model-one", effort: .low)))
+        // First install an ACC-owned wrapper, then replace it via general
+        // install (which requires an existing ACC-owned target).
+        let first = try manager.firstInstall(manager.firstInstallPreview(makeRequest(modelID: "model-one", effort: .low)))
         let originalContent = try String(contentsOf: first.wrapperURL, encoding: .utf8)
 
         let second = try manager.install(manager.preview(makeRequest(modelID: "model-two", effort: .max)))
@@ -120,7 +122,7 @@ struct ACPWrapperManagerTests {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let manager = ACPWrapperManager(managedRoot: root)
-        _ = try manager.install(manager.preview(makeRequest(modelID: "model-one")))
+        _ = try manager.firstInstall(manager.firstInstallPreview(makeRequest(modelID: "model-one")))
         let second = try manager.install(manager.preview(makeRequest(modelID: "model-two")))
         let backupURL = try #require(second.backupURL)
         let currentContent = try String(contentsOf: second.wrapperURL, encoding: .utf8)
@@ -136,36 +138,41 @@ struct ACPWrapperManagerTests {
     func failedSyntaxValidationLeavesExistingWrapperUntouched() throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        let wrapperURL = root.appendingPathComponent("kiro-acp-xcode.sh")
-        let originalContent = "#!/bin/zsh\nexec '/old/kiro-cli' acp\n"
-        try originalContent.write(to: wrapperURL, atomically: true, encoding: .utf8)
         let manager = ACPWrapperManager(managedRoot: root, syntaxValidator: { _ in false })
-        let preview = try manager.preview(makeRequest())
+        let preview = try manager.firstInstallPreview(makeRequest())
 
         #expect(throws: ACPWrapperManagerError.syntaxValidationFailed) {
-            try manager.install(preview)
+            try manager.firstInstall(preview)
         }
-        #expect(try String(contentsOf: wrapperURL, encoding: .utf8) == originalContent)
+        #expect(!FileManager.default.fileExists(atPath: preview.wrapperURL.path))
     }
 
     @Test
     func failedPostWriteVerificationAutomaticallyRestoresBackup() throws {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-        let wrapperURL = root.appendingPathComponent("kiro-acp-xcode.sh")
-        let originalContent = "#!/bin/zsh\nexec '/old/kiro-cli' acp\n"
-        try originalContent.write(to: wrapperURL, atomically: true, encoding: .utf8)
-        let validator = FirstValidationOnly()
-        let manager = ACPWrapperManager(
+        // Install a valid ACC-owned wrapper first.
+        let manager = ACPWrapperManager(managedRoot: root)
+        _ = try manager.firstInstall(manager.firstInstallPreview(makeRequest(modelID: "model-one")))
+        let originalContent = try String(contentsOf: manager.wrapperURL, encoding: .utf8)
+
+        // Replace it with a validator that fails only on the post-write check.
+        // NOTE: the ownership guard inside install() also runs the validator
+        // (for the destination file) before any temp-file validation, so the
+        // failing call must be the LAST one. Pass a validator that returns
+        // true until told otherwise.
+        let validator = FailOnNthValidation(failAt: 3)
+        let replacingManager = ACPWrapperManager(
             managedRoot: root,
             syntaxValidator: { _ in validator.validate() }
         )
-        let preview = try manager.preview(makeRequest())
+        let preview = try replacingManager.preview(makeRequest(modelID: "model-two"))
+        #expect(preview.existingContent == originalContent)
 
         #expect(throws: ACPWrapperManagerError.postWriteVerificationFailed) {
-            try manager.install(preview)
+            try replacingManager.install(preview)
         }
-        #expect(try String(contentsOf: wrapperURL, encoding: .utf8) == originalContent)
+        #expect(try String(contentsOf: manager.wrapperURL, encoding: .utf8) == originalContent)
     }
 
     @Test
@@ -173,7 +180,10 @@ struct ACPWrapperManagerTests {
         let root = try makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let manager = ACPWrapperManager(managedRoot: root)
-        let preview = try manager.preview(makeRequest())
+        // Create an ACC-owned wrapper first, then take a preview that the
+        // external process later mutates.
+        _ = try manager.firstInstall(manager.firstInstallPreview(makeRequest(modelID: "model-one")))
+        let preview = try manager.preview(makeRequest(modelID: "model-two"))
         try "external change".write(to: preview.wrapperURL, atomically: true, encoding: .utf8)
 
         #expect(throws: ACPWrapperManagerError.destinationChanged) {
@@ -197,6 +207,140 @@ struct ACPWrapperManagerTests {
                 wrapperURL: root.appendingPathComponent("kiro-acp-xcode.sh")
             )
         }
+    }
+
+    @Test
+    func installBlockedWhenManagedDestinationIsSymlink() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = ACPWrapperManager(managedRoot: root)
+        let preview = try manager.preview(makeRequest())
+        try FileManager.default.createSymbolicLink(
+            at: preview.wrapperURL,
+            withDestinationURL: root.appendingPathComponent("real-wrapper.sh")
+        )
+
+        #expect(throws: ACPWrapperManagerError.firstInstallDestinationNotEmpty) {
+            try manager.firstInstall(preview)
+        }
+    }
+
+    @Test
+    func firstInstallPreviewBlockedWhenTargetContainsAnyEntry() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = ACPWrapperManager(managedRoot: root)
+        let wrapperURL = root.appendingPathComponent("kiro-acp-xcode.sh")
+        try "#!/bin/zsh\nexec '/old/kiro-cli' acp\n".write(to: wrapperURL, atomically: true, encoding: .utf8)
+
+        #expect(throws: ACPWrapperManagerError.firstInstallDestinationNotEmpty) {
+            try manager.firstInstallPreview(makeRequest())
+        }
+    }
+
+    @Test
+    func firstInstallRejectedWhenTargetAppearsAfterPreview() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = ACPWrapperManager(managedRoot: root)
+        let preview = try manager.preview(makeRequest())
+        try "#!/bin/zsh\nexec '/old/kiro-cli' acp\n".write(to: preview.wrapperURL, atomically: true, encoding: .utf8)
+
+        #expect(throws: ACPWrapperManagerError.firstInstallDestinationNotEmpty) {
+            try manager.firstInstall(preview)
+        }
+    }
+
+    @Test
+    func firstInstallRejectsWhenDestinationExistsAsDirectory() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = ACPWrapperManager(managedRoot: root)
+        let wrapperURL = root.appendingPathComponent("kiro-acp-xcode.sh")
+        try FileManager.default.createDirectory(at: wrapperURL, withIntermediateDirectories: true)
+
+        #expect(throws: ACPWrapperManagerError.firstInstallDestinationNotEmpty) {
+            try manager.firstInstallPreview(makeRequest())
+        }
+    }
+
+    @Test
+    func ancestorSymlinkRejectedForFirstInstall() throws {
+        // A symlink anywhere between the managed root and the wrapper must
+        // block installation so the wrapper cannot escape into the symlink
+        // target while the UI claims the canonical path.
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let managedRoot = root.appendingPathComponent("managed")
+        let realDir = root.appendingPathComponent("real-dir")
+        try FileManager.default.createDirectory(at: realDir, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: managedRoot,
+            withDestinationURL: realDir
+        )
+
+        let manager = ACPWrapperManager(managedRoot: managedRoot)
+        let preview = try manager.preview(makeRequest())
+
+        do {
+            try manager.firstInstall(preview)
+            Issue.record("Expected ancestor symlink to be rejected")
+        } catch ACPWrapperManagerError.ioFailure {
+            // Expected
+        } catch {
+            Issue.record("Expected .ioFailure, got \(error)")
+        }
+        // The wrapper must NOT be created inside the symlink target.
+        #expect(!FileManager.default.fileExists(
+            atPath: realDir.appendingPathComponent("kiro-acp-xcode.sh").path
+        ))
+    }
+
+    @Test
+    func firstInstallUsesExclusiveCreateSemantics() throws {
+        // A destination that appears between the final pre-check and the
+        // write must be detected, not silently overwritten.
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = ACPWrapperManager(
+            managedRoot: root,
+            beforeFirstInstallMove: {
+                try "#!/bin/zsh\n# concurrent writer\n".write(
+                    to: root.appendingPathComponent("kiro-acp-xcode.sh"),
+                    atomically: true,
+                    encoding: .utf8
+                )
+            }
+        )
+        let preview = try manager.preview(makeRequest())
+
+        #expect(throws: ACPWrapperManagerError.firstInstallDestinationNotEmpty) {
+            try manager.firstInstall(preview)
+        }
+        #expect(try String(contentsOf: root.appendingPathComponent("kiro-acp-xcode.sh"), encoding: .utf8)
+            == "#!/bin/zsh\n# concurrent writer\n")
+    }
+
+    @Test
+    func generalInstallRequiresExistingACCManagedWrapper() throws {
+        // The retained general install path must refuse to replace a foreign
+        // or non-ACC file at the canonical target.
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let wrapperURL = root.appendingPathComponent("kiro-acp-xcode.sh")
+        try "#!/bin/zsh\nexec '/foreign/kiro-cli' acp\n".write(to: wrapperURL, atomically: true, encoding: .utf8)
+        let manager = ACPWrapperManager(managedRoot: root)
+        let preview = try manager.preview(makeRequest())
+
+        do {
+            try manager.install(preview)
+            Issue.record("Expected general install to reject a foreign wrapper")
+        } catch ACPWrapperManagerError.ioFailure {
+            // Expected
+        } catch {
+            Issue.record("Expected .ioFailure, got \(error)")
+        }
+        #expect(try String(contentsOf: wrapperURL, encoding: .utf8) == "#!/bin/zsh\nexec '/foreign/kiro-cli' acp\n")
     }
 
     @Test @MainActor
@@ -237,6 +381,7 @@ struct ACPWrapperManagerTests {
         await viewModel.installWrapperPreview()
         #expect(viewModel.wrapperManagerStatus == .installed)
         #expect(FileManager.default.fileExists(atPath: viewModel.managedWrapperURL.path))
+        #expect(viewModel.lifecycleContext.state == .managedWrapperInactive)
     }
 }
 
@@ -249,5 +394,23 @@ private final class FirstValidationOnly: @unchecked Sendable {
         defer { lock.unlock() }
         count += 1
         return count == 1
+    }
+}
+
+/// Returns true for the first (n-1) calls and false on the n-th call.
+private final class FailOnNthValidation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    private let failAt: Int
+
+    init(failAt: Int) {
+        self.failAt = failAt
+    }
+
+    func validate() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+        return count != failAt
     }
 }
