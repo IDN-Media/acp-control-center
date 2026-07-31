@@ -13,6 +13,7 @@ network activity it initiates.
 | `~/.kiro/logs/*/kiro.log` | Model ID, agent mode, origin, client name | Conversation IDs (logged structurally but never retained), turn IDs, prompts, file paths |
 | `~/Library/Developer/Xcode/CodingAssistant/ACP/*.plist` | Wrapper executable path | All other plist fields |
 | ACP wrapper script (path from plist) | Model flag, effort flag, syntax validity | Script body (parsed as text, never executed) |
+| `~/.local/share/acp-control-center/wrappers/` | Managed wrapper | Only structured executable/model/effort configuration chosen by the user is written |
 
 CLI discovery checks only this bounded candidate list; it never recursively
 scans arbitrary directories. All readers accept injected paths in their
@@ -67,9 +68,40 @@ Captured reads from these files are bounded to 1 MiB per stream; larger
 output is truncated with a clear marker.
 
 The app does **not** persist analytics, caches, databases, credentials, or
-process output. If the user chooses an executable manually, the standardized
-path string is stored in the app's `UserDefaults` so it can be reused after a
-restart. No executable content or authentication material is copied.
+process output. It can persist the selected CLI path in `UserDefaults` and,
+only after preview plus confirmation, one app-managed wrapper. No executable
+content from an existing wrapper or authentication material is copied.
+
+## Managed-wrapper writes
+
+Wrapper writes are restricted to the app's private no-space managed directory.
+Generated scripts contain only:
+
+- the selected Kiro CLI executable path;
+- fixed HOME and PATH values from an internal allowlist;
+- optional user-selected model and effort arguments;
+- a deterministic ownership marker comment (`# ACC-MANAGED-WRAPPER`).
+
+The app shows the complete script before installation. It does not accept
+arbitrary environment variables or arbitrary shell fragments. Installation
+uses private directories (`0700`), an executable wrapper (`0700`), destination
+race checks, syntax validation, atomic first installation, and read-back
+verification. Existing destinations are rejected rather than replaced. Xcode
+ACP plist files remain read-only.
+
+The lifecycle classifier determines whether a wrapper is app-owned using
+ALL of the following conditions at the single managed target path:
+
+- Exact canonical URL equality (standardized path match)
+- Regular file (not symlink, directory, or device)
+- Executable permission
+- Contains `# ACC-MANAGED-WRAPPER` ownership marker in header position
+- Parses as a valid ACP invocation
+- Passes `/bin/zsh -n` syntax validation
+
+Symlinks that resolve to the managed target are not treated as owned.
+Inspection failures fail closed — they are never treated as "absent" or
+"valid". The Xcode ACP plist remains read-only.
 
 ## Diagnostic output
 
@@ -101,9 +133,7 @@ internally.
 
 ## Data retention
 
-The app retains parsed structural values only in ephemeral in-memory state
-(`DashboardSnapshot`). The sole durable value is the optional user-selected
-Kiro CLI executable path in `UserDefaults`; it is replaced or cleared by later
-CLI selection or discovery actions. There are no caches, databases, analytics,
-or credential stores. Transient process output files are removed immediately
-after use (see above). When the app quits, all in-memory state is discarded.
+The app retains parsed observations in ephemeral in-memory state. Durable
+local state is limited to the optional selected CLI path plus explicitly
+installed managed wrapper. There are no caches, databases, analytics,
+credential stores, or persisted process output.

@@ -71,20 +71,35 @@ All test fixtures must use sanitized placeholder values:
 
 Never use real personal data, credentials, or session identifiers in fixtures.
 
-## Privacy and read-only constraints
+## Privacy and write constraints
 
-The current baseline is read-only. Any future write-capable feature (such as
-the planned Wrapper Manager) requires:
+The current baseline provides read-only observability plus a narrow confirmed
+managed-wrapper write boundary:
+
+**Read-only surface (no writes ever):**
+- All Kiro log readers, model observers, and usage parsers
+- Xcode ACP plist files (always read-only, owned by Xcode)
+- Unmanaged wrapper files (never modified)
+- Kiro files and credentials
+
+**Narrow confirmed write boundary (Work Package A):**
+- Writes only under `~/.local/share/acp-control-center/wrappers/`
+- First-time install only (rejects any existing entry at target)
+- Requires preview + explicit user confirmation
+- Uses first-install-specific API with pre-write destination checks
+- Validates ownership via exact path + marker + parse + syntax
+
+Any future expansion of the write surface (Work Packages B, C) requires:
 
 - Explicitly approved scope documented in the roadmap
 - User confirmation before every write operation
 - Preview of the intended change before execution
 - Atomic file replacement (write to temp file, then rename)
 - Post-write validation (syntax check + read-back verification)
-- Backup of the previous file state with rollback on validation failure
+- Backup of the previous file state when an operation can replace existing data
 - Test coverage for the backup, read-back, and rollback paths
 
-Within the current read-only scope:
+Within the current scope:
 
 - Never add code that reads authentication tokens or credentials.
 - Never add code that submits prompts or opens Kiro IDE.
@@ -113,7 +128,7 @@ specification.
       discovered by the corresponding SwiftPM target
 - [ ] No real credentials, tokens, or personal data in fixtures
 - [ ] No new network requests beyond documented CLI invocations
-- [ ] **Write safety gate:** If this PR introduces any file-write
-  capability, it includes user confirmation, atomic replace, pre-write
-  backup, post-write validation, rollback on failure, and test coverage for
-  all of the above. Read-only PRs may skip this gate.
+- [ ] **Write safety gate:** If this PR introduces file writes, it includes
+  user confirmation, race-safe atomic installation/replacement, post-write
+  validation, and relevant failure-path tests. Replacement flows also require
+  a pre-write backup and rollback coverage. Read-only PRs may skip this gate.

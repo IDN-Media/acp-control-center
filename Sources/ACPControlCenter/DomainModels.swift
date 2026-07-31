@@ -154,6 +154,13 @@ struct ACPWrapperConfiguration: Equatable, Sendable {
     let syntaxIsValid: Bool
 }
 
+enum ACPWrapperManagerStatus: Equatable, Sendable {
+    case idle
+    case previewReady
+    case installed
+    case failed(message: String)
+}
+
 // MARK: - Dashboard snapshot
 
 struct DashboardSnapshot: Equatable, Sendable {

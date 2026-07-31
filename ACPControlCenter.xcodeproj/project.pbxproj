@@ -29,9 +29,16 @@
 		D7F098CABD2AB25F6833FC26 /* ProcessRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0647A9D2485E017EC02FC220 /* ProcessRunnerTests.swift */; };
 		DE909E7771E7BD416034E115 /* KiroUsageReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 847A40B6DD4BA7965E1EE46E /* KiroUsageReaderTests.swift */; };
 		E8A189427B443B8A3BAF1373 /* ACPWrapperReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20C4B74EA03EB079E84B19A4 /* ACPWrapperReader.swift */; };
+		F4A1B2C3D4E5F60718293A02 /* ACPWrapperManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A1B2C3D4E5F60718293A01 /* ACPWrapperManager.swift */; };
+		F4A1B2C3D4E5F60718293A04 /* ACPWrapperManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A1B2C3D4E5F60718293A03 /* ACPWrapperManagerView.swift */; };
+		F4A1B2C3D4E5F60718293A06 /* ACPWrapperManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A1B2C3D4E5F60718293A05 /* ACPWrapperManagerTests.swift */; };
 		FC892AB53ADAF5056F3B42E2 /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4A79841FA8C5B7A46760ED /* DashboardViewModelTests.swift */; };
 		D1A2B3C4E5F60718293A4B5E /* PathRedactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5C /* PathRedactor.swift */; };
 		D1A2B3C4E5F60718293A4B5F /* PathRedactorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5D /* PathRedactorTests.swift */; };
+		A1B2C3D4E5F6071829300001 /* ACPProviderLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6071829300002 /* ACPProviderLifecycle.swift */; };
+		A1B2C3D4E5F6071829300003 /* ACPProviderLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6071829300004 /* ACPProviderLifecycleTests.swift */; };
+		A1B2C3D4E5F6071829300005 /* ACPWrapperSetupFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6071829300006 /* ACPWrapperSetupFlowTests.swift */; };
+		A1B2C3D4E5F6071829300007 /* ManagedArtifactOwnershipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6071829300008 /* ManagedArtifactOwnershipTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,9 +76,16 @@
 		CDCF7243436BCFF8C3CC44E2 /* KiroCLIResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroCLIResolver.swift; sourceTree = "<group>"; };
 		E426D33FF156DA605CE179FD /* DomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModels.swift; sourceTree = "<group>"; };
 		F59621DE42740A00D9BE508E /* KiroCLIResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroCLIResolverTests.swift; sourceTree = "<group>"; };
+		F4A1B2C3D4E5F60718293A01 /* ACPWrapperManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperManager.swift; sourceTree = "<group>"; };
+		F4A1B2C3D4E5F60718293A03 /* ACPWrapperManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperManagerView.swift; sourceTree = "<group>"; };
+		F4A1B2C3D4E5F60718293A05 /* ACPWrapperManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperManagerTests.swift; sourceTree = "<group>"; };
 		FB97945C64BD20C09F145B0D /* DataAvailabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataAvailabilityTests.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5C /* PathRedactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathRedactor.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5D /* PathRedactorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathRedactorTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6071829300002 /* ACPProviderLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPProviderLifecycle.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6071829300004 /* ACPProviderLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPProviderLifecycleTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6071829300006 /* ACPWrapperSetupFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperSetupFlowTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6071829300008 /* ManagedArtifactOwnershipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedArtifactOwnershipTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -95,6 +109,9 @@
 		35B40F05E823B5C5C3C49D25 /* ACPControlCenter */ = {
 			isa = PBXGroup;
 			children = (
+				A1B2C3D4E5F6071829300002 /* ACPProviderLifecycle.swift */,
+				F4A1B2C3D4E5F60718293A01 /* ACPWrapperManager.swift */,
+				F4A1B2C3D4E5F60718293A03 /* ACPWrapperManagerView.swift */,
 				20C4B74EA03EB079E84B19A4 /* ACPWrapperReader.swift */,
 				7327436130D02CD7AAEF8810 /* DashboardView.swift */,
 				C6925BB1570AA9D9BB144D54 /* DashboardViewModel.swift */,
@@ -114,7 +131,11 @@
 		516F381EE7C5F26B8477034E /* ACPControlCenterTests */ = {
 			isa = PBXGroup;
 			children = (
+				A1B2C3D4E5F6071829300004 /* ACPProviderLifecycleTests.swift */,
+				F4A1B2C3D4E5F60718293A05 /* ACPWrapperManagerTests.swift */,
 				0A5461F1632A8A97FE30A390 /* ACPWrapperReaderTests.swift */,
+				A1B2C3D4E5F6071829300006 /* ACPWrapperSetupFlowTests.swift */,
+				A1B2C3D4E5F6071829300008 /* ManagedArtifactOwnershipTests.swift */,
 				CD4A79841FA8C5B7A46760ED /* DashboardViewModelTests.swift */,
 				FB97945C64BD20C09F145B0D /* DataAvailabilityTests.swift */,
 				748E00443238D436DEF27FBF /* FixtureLocator.swift */,
@@ -237,6 +258,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D4E5F6071829300003 /* ACPProviderLifecycleTests.swift in Sources */,
+				A1B2C3D4E5F6071829300005 /* ACPWrapperSetupFlowTests.swift in Sources */,
+				A1B2C3D4E5F6071829300007 /* ManagedArtifactOwnershipTests.swift in Sources */,
+				F4A1B2C3D4E5F60718293A06 /* ACPWrapperManagerTests.swift in Sources */,
 				828546F5BF5A00302BA10797 /* ACPWrapperReaderTests.swift in Sources */,
 				FC892AB53ADAF5056F3B42E2 /* DashboardViewModelTests.swift in Sources */,
 				A58556193F07F45E31CFCAC3 /* DataAvailabilityTests.swift in Sources */,
@@ -256,6 +281,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D4E5F6071829300001 /* ACPProviderLifecycle.swift in Sources */,
+				F4A1B2C3D4E5F60718293A02 /* ACPWrapperManager.swift in Sources */,
+				F4A1B2C3D4E5F60718293A04 /* ACPWrapperManagerView.swift in Sources */,
 				E8A189427B443B8A3BAF1373 /* ACPWrapperReader.swift in Sources */,
 				2E33B8985A81A5D8B68FF88C /* DashboardView.swift in Sources */,
 				96589E6E374EC4ADF6CC7E63 /* DashboardViewModel.swift in Sources */,
