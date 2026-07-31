@@ -151,10 +151,10 @@ struct DashboardSnapshot: Equatable, Sendable {
 /// and SwiftUI state comparisons.
 private func resultsEqual<T: Equatable>(_ lhs: Result<T, ReaderError>, _ rhs: Result<T, ReaderError>) -> Bool {
     switch (lhs, rhs) {
-    case (.success(let l), .success(let r)):
-        return l == r
-    case (.failure(let l), .failure(let r)):
-        return l == r
+    case (.success(let left), .success(let right)):
+        return left == right
+    case (.failure(let left), .failure(let right)):
+        return left == right
     default:
         return false
     }

@@ -45,7 +45,8 @@ for stable numeric width without a fixed frame.
 
 - macOS 14+
 - Xcode 16+ / Swift 6 toolchain
-- No third-party dependencies (Foundation, SwiftUI, Observation, Testing)
+- No third-party runtime dependencies (Foundation, SwiftUI, Observation,
+  Testing); SwiftLint is a pinned build-time quality dependency
 - Live refresh requires `kiro-cli` installed and user logged in
 
 ## Build

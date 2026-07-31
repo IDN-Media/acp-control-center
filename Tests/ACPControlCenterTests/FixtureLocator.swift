@@ -15,7 +15,7 @@ enum FixtureLocator {
 
         let nameAndExtension = fileName.split(separator: ".", maxSplits: 1)
         let name = String(nameAndExtension[0])
-        let extension_ = nameAndExtension.count > 1 ? String(nameAndExtension[1]) : nil
+        let fileExtension = nameAndExtension.count > 1 ? String(nameAndExtension[1]) : nil
 
         #if SWIFT_PACKAGE
         let resourceBundle = Bundle.module
@@ -25,7 +25,7 @@ enum FixtureLocator {
 
         guard let url = resourceBundle.url(
             forResource: name,
-            withExtension: extension_,
+            withExtension: fileExtension,
             subdirectory: subdirectory
         ) else {
             fatalError("Fixture not found: \(relativePath) (looked in \(subdirectory))")

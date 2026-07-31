@@ -118,17 +118,17 @@ struct KiroUsageLiveReader: Sendable {
                 guard let next = iterator.next() else { break }
                 if next == "[" {
                     // CSI: consume until a letter (0x40-0x7E)
-                    while let c = iterator.next() {
-                        if c.asciiValue.map({ $0 >= 0x40 && $0 <= 0x7E }) == true {
+                    while let sequenceCharacter = iterator.next() {
+                        if sequenceCharacter.asciiValue.map({ $0 >= 0x40 && $0 <= 0x7E }) == true {
                             break
                         }
                     }
                 } else if next == "]" {
                     // OSC: consume until BEL (\u{07}) or ST (ESC \)
-                    while let c = iterator.next() {
-                        if c == "\u{07}" { break }
-                        if c == "\u{1B}" {
-                            let _ = iterator.next() // consume the backslash
+                    while let sequenceCharacter = iterator.next() {
+                        if sequenceCharacter == "\u{07}" { break }
+                        if sequenceCharacter == "\u{1B}" {
+                            _ = iterator.next() // consume the backslash
                             break
                         }
                     }
@@ -348,8 +348,8 @@ struct KiroUsageLiveReader: Sendable {
             }
         }
 
-        guard let s = startIdx, let e = endIdx else { return nil }
-        let token = String(trimmed[s..<e])
+        guard let start = startIdx, let end = endIdx else { return nil }
+        let token = String(trimmed[start..<end])
         return parseNumericToken(token)
     }
 
