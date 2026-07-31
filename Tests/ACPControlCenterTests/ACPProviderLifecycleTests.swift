@@ -538,6 +538,33 @@ struct ACPProviderLifecycleTests {
     }
 
     @Test
+    func enotdirAncestorIsNotSafeAbsence() throws {
+        // An ancestor component exists but is not a directory (ENOTDIR): the
+        // canonical destination cannot be created, so it must fail closed
+        // instead of being reported as absent and safe.
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let blockingFile = root.appendingPathComponent("not-a-dir")
+        try "x".write(to: blockingFile, atomically: true, encoding: .utf8)
+
+        let broken = blockingFile.appendingPathComponent("wrapper.sh")
+        let info = ManagedWrapperFileInfo.read(at: broken)
+        #expect(info.entryExists == false)
+        #expect(info.isAbsentAndSafe == false)
+        #expect(info.isValidManagedWrapper == false)
+        if let reason = info.invalidReason {
+            guard case .inspectionFailed = reason else {
+                Issue.record("Expected .inspectionFailed, got \(reason)")
+                return
+            }
+        } else {
+            Issue.record("Expected an invalid reason for ENOTDIR ancestor")
+        }
+    }
+
+    @Test
     func exactPathMatchIgnoresTrailingSlashDifferences() {
         let managedURL = URL(fileURLWithPath: "/tmp/managed/kiro-acp-xcode.sh")
         let configWithRedundantComponents = URL(fileURLWithPath: "/tmp/managed/./kiro-acp-xcode.sh")
