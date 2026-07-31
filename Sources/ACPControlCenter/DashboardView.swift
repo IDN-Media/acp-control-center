@@ -1,11 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// The read-only menu bar dashboard: CLI status, account usage/freshness,
-/// observed model/source, and current wrapper configuration. No controls in
-/// this slice write to any Kiro/Xcode file.
+/// Menu bar dashboard for local ACP observation and the explicitly confirmed,
+/// app-managed wrapper workflow. Xcode-owned ACP plist files remain read-only.
 struct DashboardView: View {
     @Bindable var viewModel: DashboardViewModel
+    @State private var isShowingWrapperManager = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -39,6 +39,9 @@ struct DashboardView: View {
         .frame(width: 340)
         .task {
             await viewModel.performInitialRefreshIfNeeded()
+        }
+        .sheet(isPresented: $isShowingWrapperManager) {
+            ACPWrapperManagerView(viewModel: viewModel)
         }
     }
 
@@ -83,7 +86,6 @@ struct DashboardView: View {
 
     private func usageSection(_ result: Result<KiroAccountUsage, ReaderError>) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            // Section header with inline Refresh button and progress indicator
             HStack {
                 Text("Account usage").font(.subheadline).bold()
                 Spacer()
@@ -151,6 +153,7 @@ struct DashboardView: View {
             HStack {
                 Text("ACP wrapper").font(.subheadline).bold()
                 Spacer()
+                wrapperActionButton
                 Button("Rescan Xcode") {
                     Task { await viewModel.rescanXcode() }
                 }
@@ -181,6 +184,123 @@ struct DashboardView: View {
             case .failure(let error):
                 errorLabel(error)
             }
+
+            // Inline lifecycle-specific notices
+            lifecycleNotice
+        }
+    }
+
+    @ViewBuilder
+    private var wrapperActionButton: some View {
+        switch viewModel.lifecycleContext.state {
+        case .noProvider:
+            Button("Set Up ACP Wrapper\u{2026}") {
+                isShowingWrapperManager = true
+            }
+            .font(.caption)
+        case .configuredPathMissing:
+            Button("Create Managed Replacement\u{2026}") {
+                isShowingWrapperManager = true
+            }
+            .font(.caption)
+        case .managedWrapperInactive:
+            Button("Finish Xcode Setup\u{2026}") {
+                isShowingWrapperManager = true
+            }
+            .font(.caption)
+        case .managedWrapperActive:
+            EmptyView()
+        case .managedWrapperInvalid:
+            Button("View Problem\u{2026}") {
+                isShowingWrapperManager = true
+            }
+            .font(.caption)
+        case .unmanagedWrapperActive, .unmanagedWrapperInvalid:
+            // Read-only; no write action available.
+            EmptyView()
+        }
+    }
+
+    // MARK: - Inline lifecycle notices
+
+    @ViewBuilder
+    private var lifecycleNotice: some View {
+        switch viewModel.lifecycleContext.state {
+        case .noProvider:
+            Text("No ACP provider configured in Xcode.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        case .configuredPathMissing:
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Xcode references a wrapper that does not exist on disk.")
+            }
+            .font(.caption2)
+        case .unmanagedWrapperActive:
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundStyle(.secondary)
+                    Text("Xcode is using an external wrapper (read-only).")
+                }
+                managedLocationProblemNotice
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        case .unmanagedWrapperInvalid:
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Xcode references an invalid external wrapper (read-only).")
+                }
+                if let reason = viewModel.lifecycleContext.invalidReason {
+                    Text(reason)
+                        .foregroundStyle(.secondary)
+                }
+                if viewModel.lifecycleContext.managedWrapperAvailable {
+                    Text("A managed wrapper is available — update Xcode to use it.")
+                        .foregroundStyle(.blue)
+                }
+                managedLocationProblemNotice
+            }
+            .font(.caption2)
+        case .managedWrapperActive:
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.shield.fill")
+                    .foregroundStyle(.green)
+                Text("Xcode is using the managed wrapper.")
+            }
+            .font(.caption2)
+        case .managedWrapperInvalid:
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("The managed wrapper has a problem.")
+                }
+                if let reason = viewModel.lifecycleContext.invalidReason {
+                    Text(reason)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.caption2)
+        case .managedWrapperInactive:
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.right.circle.fill")
+                    .foregroundStyle(.blue)
+                Text("Managed wrapper installed \u{2014} configure Xcode to use it.")
+            }
+            .font(.caption2)
+        }
+    }
+
+    @ViewBuilder
+    private var managedLocationProblemNotice: some View {
+        if let reason = viewModel.lifecycleContext.managedLocationProblemReason {
+            Text("Managed wrapper location also has a problem: \(reason). ACC will not overwrite it.")
+                .foregroundStyle(.orange)
         }
     }
 

@@ -1,9 +1,8 @@
 # Architecture
 
 ACP Control Center is a macOS menu bar utility (SwiftUI `MenuBarExtra`)
-providing read-only observability into a local ACP environment. Kiro CLI is
-the initial supported integration, providing account credit usage, observed
-model/session activity, and Xcode ACP wrapper state.
+providing read-only local ACP observation plus an explicitly confirmed,
+app-managed wrapper workflow. Kiro CLI is the initial supported integration.
 
 ## Project paths
 
@@ -21,6 +20,7 @@ canonical source for native `.app` metadata, targets, and the shared scheme.
 ```
 Sources/ACPControlCenter/
   ACPControlCenterApp.swift         App entry, MenuBarExtra, AppDelegate
+  ACPProviderLifecycle.swift        Observation enum, lifecycle classifier, state context
   DashboardView.swift               SwiftUI dashboard popover
   DashboardViewModel.swift          Composes readers, formats menu bar label
   DomainModels.swift                Value types and ReaderError
@@ -28,7 +28,9 @@ Sources/ACPControlCenter/
   KiroUsageReader.swift             Local q-client.log reader (fallback)
   KiroUsageLiveReader.swift         Live CLI /usage reader (primary)
   KiroModelObservationReader.swift  Latest model/agent observation
-  ACPWrapperReader.swift            Xcode ACP plist/wrapper parser
+  ACPWrapperReader.swift            Xcode ACP plist/wrapper parser, structured observations
+  ACPWrapperManager.swift           Structured render, atomic install, rollback
+  ACPWrapperManagerView.swift       State-aware setup/status/onboarding UI
   ProcessRunner.swift               Bounded subprocess helper
   UTF8LineScanner.swift             Incremental bounded-memory log scanner
   PathRedactor.swift                Home-directory prefix redaction for diagnostics
@@ -86,17 +88,60 @@ Each reader addresses a specific resource dimension:
   naturally scoped by directory structure. No explicit depth or count cap is
   currently enforced on file discovery itself.
 
-## Read-only scope (current implementation)
+## Managed-wrapper write boundary
 
-This is the read-only MVP (Slices 1–3). The app:
+Observation remains read-only. Work Package A adds one narrow write surface:
 
 - **Reads** local log files, plist configuration, and wrapper script text.
 - **Invokes** `kiro-cli --version` and `kiro-cli chat --no-interactive '/usage'`.
 - **Persists** only a manually selected Kiro CLI executable path in app
   `UserDefaults`.
 - **Syntax-checks** the wrapper via `/bin/zsh -n` (does not execute it).
-- **Never writes** to any Kiro, Xcode, or wrapper file.
+- **Renders** managed wrappers only from structured executable/model/effort
+  values and a fixed HOME/PATH environment allowlist.
+- **Writes** only under
+  `~/.local/share/acp-control-center/wrappers/` after preview and
+  explicit confirmation.
+- **Installs once** using a sibling temporary file, permission `0700`,
+  destination race checks, syntax validation, and read-back verification.
+  Work Package A rejects every existing destination and therefore has no
+  previous state to back up or restore.
+- **Never writes** Kiro files, credentials, or Xcode ACP plist files.
 - **Never opens** Kiro IDE or submits prompts.
 
-Wrapper management (writing model/effort changes) is planned as a future
-slice and is not implemented.
+Xcode provider onboarding remains manual: the app can copy/reveal the managed
+wrapper path and explain the fields, then **Rescan Xcode** verifies the
+Xcode-owned plist afterward.
+
+## Provider lifecycle classification
+
+The dashboard classifies the current ACP provider state by combining:
+
+1. A structured **provider observation** from `ACPWrapperReader` (noProvider,
+   configuredPathMissing, wrapperInvalid, wrapperValid).
+2. Whether the **exact canonical managed wrapper file** exists at its fixed
+   target URL.
+
+Classification rules drive state-aware UX:
+
+| Provider observation | Managed artifact state | State |
+|---------------------|----------------------|-------|
+| noProvider | absent | `noProvider` |
+| noProvider | valid (all checks pass) | `managedWrapperInactive` |
+| noProvider | exists but invalid | `managedWrapperInvalid` |
+| configuredPathMissing | absent | `configuredPathMissing` |
+| configuredPathMissing | valid | `managedWrapperInactive` |
+| configuredPathMissing | exists but invalid | `managedWrapperInvalid` |
+| wrapperInvalid at managed URL | — | `managedWrapperInvalid` |
+| wrapperInvalid at other URL | any | `unmanagedWrapperInvalid` |
+| wrapperValid at managed URL | valid | `managedWrapperActive` |
+| wrapperValid at managed URL | not valid | `managedWrapperInvalid` |
+| wrapperValid at other URL | valid | `managedWrapperInactive` |
+| wrapperValid at other URL | absent/invalid | `unmanagedWrapperActive` |
+
+Ownership requires exact standardized URL equality with
+`ACPWrapperManager.wrapperURL` PLUS full structured artifact validity:
+non-symlink regular file with the ownership marker comment, parseable ACP
+invocation, and passing `/bin/zsh -n` syntax validation. Symlinks resolving
+to the managed target are explicitly rejected for ownership. Inspection
+errors fail closed — they are never treated as "absent" or "valid".

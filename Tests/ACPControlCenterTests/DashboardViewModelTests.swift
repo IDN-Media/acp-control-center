@@ -347,7 +347,9 @@ struct DashboardViewModelTests {
         await viewModel.refresh()
 
         let summary = viewModel.diagnosticSummary(redactor: redactor)
-        #expect(summary.contains("No ACP plist with an agent path found under ~/Library/Developer/Xcode/CodingAssistant/ACP-nonexistent"))
+        // With the single-read model, noProvider observation yields
+        // "No ACP provider configured" which has no path to redact.
+        #expect(summary.contains("No ACP provider configured"))
         #expect(!summary.contains("/Users/alice/"))
     }
 }

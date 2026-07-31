@@ -1,15 +1,27 @@
 import Foundation
 import Observation
 
-/// Composes the read-only readers into a single dashboard snapshot for the
-/// menu bar UI. It writes only the optional selected-CLI path preference and
-/// never modifies Kiro/Xcode files, opens Kiro IDE, or executes the wrapper.
+/// Errors indicating why a Work Package A setup operation was denied.
+enum WrapperSetupAuthorizationError: Error, Equatable, Sendable {
+    case lifecycleStateProhibitsSetup(ACPWrapperLifecycleState)
+    case cliNotReady
+    case managedDestinationNotEmpty
+}
+
+/// Composes local readers and the explicitly confirmed managed-wrapper flow.
+/// It never modifies Kiro/Xcode files, opens Kiro IDE, or executes a wrapper.
 @MainActor
 @Observable
 final class DashboardViewModel {
     private(set) var snapshot: DashboardSnapshot?
     private(set) var isRefreshing: Bool = false
     private(set) var liveUsageStatus: KiroLiveUsageStatus = .notAttempted
+    private(set) var wrapperManagerStatus: ACPWrapperManagerStatus = .idle
+    private(set) var wrapperPreview: ACPWrapperPreview?
+    private(set) var managedWrapperExists = false
+    private(set) var lifecycleContext: ACPWrapperLifecycleContext = ACPWrapperLifecycleContext(
+        state: .noProvider, activeConfiguration: nil, configuredPath: nil
+    )
     private var refreshGeneration: UInt = 0
     private var hasStartedInitialRefresh: Bool = false
     private var selectedCLIURL: URL?
@@ -19,6 +31,7 @@ final class DashboardViewModel {
     private let configuredLiveUsageReader: KiroUsageLiveReader?
     private let modelReader: KiroModelObservationReader
     private let wrapperReader: ACPWrapperReader
+    private let wrapperManager: ACPWrapperManager
     private let cliSelectionStore: KiroCLISelectionStore
 
     /// Directories surfaced for diagnostic purposes so the user can inspect
@@ -32,6 +45,7 @@ final class DashboardViewModel {
         liveUsageReader: KiroUsageLiveReader? = nil,
         modelReader: KiroModelObservationReader = KiroModelObservationReader(),
         wrapperReader: ACPWrapperReader = ACPWrapperReader(),
+        wrapperManager: ACPWrapperManager = ACPWrapperManager(),
         cliSelectionStore: KiroCLISelectionStore = KiroCLISelectionStore(),
         usageLogsRoot: URL = KiroUsageReader.defaultLogsRoot(),
         modelLogsRoot: URL = KiroModelObservationReader.defaultLogsRoot()
@@ -41,12 +55,18 @@ final class DashboardViewModel {
         self.configuredLiveUsageReader = liveUsageReader
         self.modelReader = modelReader
         self.wrapperReader = wrapperReader
+        self.wrapperManager = wrapperManager
         self.cliSelectionStore = cliSelectionStore
         self.selectedCLIURL = cliResolver.acceptsPersistedSelection
             ? cliSelectionStore.load()
             : nil
         self.usageLogsRoot = usageLogsRoot
         self.modelLogsRoot = modelLogsRoot
+        self.managedWrapperExists = wrapperManager.managedWrapperExists
+    }
+
+    var managedWrapperURL: URL {
+        wrapperManager.wrapperURL
     }
 
     // MARK: - Menu bar label
@@ -93,9 +113,6 @@ final class DashboardViewModel {
     /// no unnecessary trailing zeros (e.g. 1000, not 1000.00; 771.21, not
     /// 771.210).
     static func formatDecimalCredits(_ value: Decimal) -> String {
-        // NSDecimalNumber.stringValue produces a plain decimal representation
-        // without grouping separators or scientific notation, and omits
-        // unnecessary trailing zeros automatically.
         return (value as NSDecimalNumber).stringValue
     }
 
@@ -112,8 +129,8 @@ final class DashboardViewModel {
 
     // MARK: - Refresh
 
-    /// Re-reads all sources. Usage is resolved from the discovered executable;
-    /// an explicitly injected live reader remains available for isolated tests.
+    /// Re-reads all sources. Provider observation is the single
+    /// structured read; the snapshot's wrapper Result is derived from it.
     func refresh() async {
         refreshGeneration &+= 1
         let generation = refreshGeneration
@@ -124,9 +141,6 @@ final class DashboardViewModel {
             }
         }
 
-        // File enumeration, log decoding, and short process invocations can
-        // take noticeable time. Keep them off MainActor so opening or
-        // refreshing the menu does not freeze the UI.
         let cliResolver = self.cliResolver
         let usageReader = self.usageReader
         let configuredLiveUsageReader = self.configuredLiveUsageReader
@@ -138,7 +152,10 @@ final class DashboardViewModel {
             cliResolver.resolve(preferredExecutableURL: selectedCLIURL)
         }.value
         async let model = Task.detached { modelReader.readLatestObservation() }.value
-        async let wrapper = Task.detached { wrapperReader.readWrapperConfiguration() }.value
+        // Single structured read — only readProviderObservation()
+        async let providerObs = Task.detached {
+            wrapperReader.readProviderObservation()
+        }.value
 
         let resolvedCLI = await cli
         let liveUsageReader = configuredLiveUsageReader ?? Self.makeLiveUsageReader(for: resolvedCLI)
@@ -146,25 +163,34 @@ final class DashboardViewModel {
             Self.resolveUsage(live: liveUsageReader, local: usageReader)
         }.value
 
-        let (usageResolution, observedModel, wrapperConfiguration) = await (usage, model, wrapper)
+        let (usageResolution, observedModel, providerObservation) = await (usage, model, providerObs)
 
-        // If a newer refresh started or the SwiftUI task was cancelled while
-        // readers were working, discard this older result rather than
-        // overwriting fresher state.
         guard refreshGeneration == generation, !Task.isCancelled else { return }
 
         if selectedCLIURL != nil, resolvedCLI.discoverySource != .selected {
             self.selectedCLIURL = nil
             cliSelectionStore.save(nil)
         }
+
+        // Derive wrapper Result from the single observation
+        let wrapperResult = ACPWrapperReader.wrapperResult(from: providerObservation)
+
         snapshot = DashboardSnapshot(
             cli: resolvedCLI,
             accountUsage: usageResolution.result,
             observedModel: observedModel,
-            wrapper: wrapperConfiguration,
+            wrapper: wrapperResult,
             refreshedAt: Date()
         )
         liveUsageStatus = usageResolution.status
+
+        let fileInfo = wrapperManager.managedFileInfo
+        managedWrapperExists = fileInfo.isValidManagedWrapper
+        lifecycleContext = ACPWrapperLifecycleClassifier.classify(
+            observation: providerObservation,
+            managedFileInfo: fileInfo,
+            managedWrapperURL: wrapperManager.wrapperURL
+        )
     }
 
     func searchAgain() async {
@@ -238,17 +264,130 @@ final class DashboardViewModel {
         }
         await performFocusedRefresh { [self] generation in
             let wrapperReader = self.wrapperReader
-            let wrapper = await Task.detached {
-                wrapperReader.readWrapperConfiguration()
+            let wrapperManager = self.wrapperManager
+            // Single structured read for rescan
+            let observation = await Task.detached {
+                wrapperReader.readProviderObservation()
             }.value
             guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+
+            let wrapperResult = ACPWrapperReader.wrapperResult(from: observation)
             self.snapshot = DashboardSnapshot(
                 cli: currentSnapshot.cli,
                 accountUsage: currentSnapshot.accountUsage,
                 observedModel: currentSnapshot.observedModel,
-                wrapper: wrapper,
+                wrapper: wrapperResult,
                 refreshedAt: Date()
             )
+            let fileInfo = wrapperManager.managedFileInfo
+            self.managedWrapperExists = fileInfo.isValidManagedWrapper
+            self.lifecycleContext = ACPWrapperLifecycleClassifier.classify(
+                observation: observation,
+                managedFileInfo: fileInfo,
+                managedWrapperURL: wrapperManager.wrapperURL
+            )
+        }
+    }
+
+    // MARK: - Managed wrapper (Work Package A first-install only)
+
+    /// States from which Work Package A setup is allowed.
+    private static let setupAllowedStates: Set<ACPWrapperLifecycleState> = [
+        .noProvider, .configuredPathMissing
+    ]
+
+    /// Checks all Work Package A preconditions for prepare/install.
+    /// Returns nil if authorized, or an error describing why not.
+    private func checkSetupAuthorization() -> WrapperSetupAuthorizationError? {
+        guard Self.setupAllowedStates.contains(lifecycleContext.state) else {
+            return .lifecycleStateProhibitsSetup(lifecycleContext.state)
+        }
+        guard snapshot?.cli.availability == .ready else {
+            return .cliNotReady
+        }
+        // First-install requires the managed target to be completely absent
+        let fileInfo = wrapperManager.managedFileInfo
+        if fileInfo.entryExists {
+            return .managedDestinationNotEmpty
+        }
+        return nil
+    }
+
+    func prepareWrapperPreview(modelID: String?, effort: ACPWrapperEffort?) async {
+        if let authError = checkSetupAuthorization() {
+            wrapperManagerStatus = .failed(message: Self.describeAuthError(authError))
+            return
+        }
+        guard let cliURL = snapshot?.cli.executableURL else {
+            wrapperManagerStatus = .failed(message: "Choose a ready Kiro CLI executable first.")
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let manager = self.wrapperManager
+            let request = ACPWrapperRequest(
+                cliExecutableURL: cliURL,
+                modelID: modelID,
+                effort: effort
+            )
+            do {
+                let preview = try await Task.detached {
+                    try manager.firstInstallPreview(request)
+                }.value
+                guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+                self.wrapperPreview = preview
+                self.wrapperManagerStatus = .previewReady
+            } catch {
+                guard self.refreshGeneration == generation else { return }
+                self.wrapperPreview = nil
+                self.wrapperManagerStatus = .failed(message: Self.describeWrapperManagerError(error))
+            }
+        }
+    }
+
+    func installWrapperPreview() async {
+        guard let preview = wrapperPreview else {
+            wrapperManagerStatus = .failed(message: "Preview the wrapper before installing it.")
+            return
+        }
+        // Re-check authorization at install time (race detection)
+        if let authError = checkSetupAuthorization() {
+            wrapperManagerStatus = .failed(message: Self.describeAuthError(authError))
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let manager = self.wrapperManager
+            do {
+                _ = try await Task.detached {
+                    try manager.firstInstall(preview)
+                }.value
+                guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+                self.managedWrapperExists = manager.managedWrapperExists
+                self.wrapperPreview = nil
+                self.wrapperManagerStatus = .installed
+                // After first install, Xcode is not yet pointing at the
+                // managed wrapper. Transition to inactive to prompt the user
+                // to configure Xcode manually.
+                self.lifecycleContext = ACPWrapperLifecycleContext(
+                    state: .managedWrapperInactive,
+                    activeConfiguration: nil,
+                    configuredPath: self.lifecycleContext.configuredPath,
+                    managedWrapperAvailable: true
+                )
+            } catch {
+                guard self.refreshGeneration == generation else { return }
+                self.wrapperManagerStatus = .failed(message: Self.describeWrapperManagerError(error))
+            }
+        }
+    }
+
+    // Rollback and backup browsing are not exposed in Work Package A.
+    // The low-level ACPWrapperManager implementation is retained for
+    // internal use and future Work Packages.
+
+    func clearWrapperPreview() {
+        wrapperPreview = nil
+        if wrapperManagerStatus == .previewReady {
+            wrapperManagerStatus = .idle
         }
     }
 
@@ -290,9 +429,6 @@ final class DashboardViewModel {
             let liveResult = live.fetchLiveUsage()
             switch liveResult {
             case .success(let liveUsage):
-                // Convert to KiroAccountUsage with .liveCLI source.
-                // sourceURL is nil because there is no backing file for
-                // live CLI responses.
                 return UsageResolution(result: .success(KiroAccountUsage(
                     used: liveUsage.used,
                     limit: liveUsage.limit,
@@ -351,9 +487,6 @@ final class DashboardViewModel {
 
     /// Builds a plain-text diagnostic summary containing only structural
     /// state: paths, versions, freshness, and parsed configuration flags.
-    /// Never includes profile ARNs, emails, request IDs, prompts, or message
-    /// content. File paths are emitted with the user's home-directory prefix
-    /// replaced by `~` to reduce incidental PII exposure.
     func diagnosticSummary(now: Date = Date(), redactor: PathRedactor = PathRedactor()) -> String {
         guard let snapshot else {
             return "ACP Control Center diagnostic summary\nNo data has been read yet."
@@ -436,6 +569,17 @@ final class DashboardViewModel {
         return lines.joined(separator: "\n")
     }
 
+    private static func describeAuthError(_ error: WrapperSetupAuthorizationError) -> String {
+        switch error {
+        case .lifecycleStateProhibitsSetup(let state):
+            return "Setup is not available in the current state (\(state))."
+        case .cliNotReady:
+            return "Kiro CLI must be ready before creating a wrapper."
+        case .managedDestinationNotEmpty:
+            return "A file already exists at the managed wrapper destination. Cannot perform first-time setup."
+        }
+    }
+
     private static func describeUsageSource(_ source: UsageSource) -> String {
         switch source {
         case .liveCLI:
@@ -507,6 +651,30 @@ final class DashboardViewModel {
             return "missing"
         case .invalid(let reason):
             return "invalid (\(reason))"
+        }
+    }
+
+    private static func describeWrapperManagerError(_ error: Error) -> String {
+        guard let managerError = error as? ACPWrapperManagerError else {
+            return "Wrapper operation failed."
+        }
+        switch managerError {
+        case .invalidExecutablePath:
+            return "The selected Kiro CLI path is not valid for a managed wrapper."
+        case .invalidModelID:
+            return "The model ID contains unsupported characters."
+        case .destinationChanged:
+            return "The wrapper changed after preview. Preview it again before installing."
+        case .syntaxValidationFailed:
+            return "The generated wrapper failed zsh syntax validation. Nothing was installed."
+        case .postWriteVerificationFailed:
+            return "Wrapper verification failed after installation. The previous version was restored."
+        case .unmanagedBackup:
+            return "Only backups created by ACP Control Center can be restored."
+        case .firstInstallDestinationNotEmpty:
+            return "A file already exists at the managed wrapper destination. Cannot perform first-time setup."
+        case .ioFailure(let reason):
+            return reason
         }
     }
 

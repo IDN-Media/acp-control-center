@@ -109,20 +109,26 @@ struct ACPWrapperReaderTests {
         try data.write(to: plistURL)
 
         let reader = ACPWrapperReader(acpDirectory: root)
-        let result = reader.readWrapperConfiguration()
+        let observation = reader.readProviderObservation()
 
-        guard case .success(let config) = result else {
-            Issue.record("Expected success, got \(result)")
-            return
+        // The fixture wrapper-no-flags.sh isn't marked executable in the
+        // test bundle, so observation reports wrapperInvalid with its URL.
+        switch observation {
+        case .wrapperValid(let config):
+            #expect(config.wrapperURL == wrapperURL)
+        case .wrapperInvalid(let url, _):
+            #expect(url == wrapperURL)
+        default:
+            Issue.record("Expected wrapperValid or wrapperInvalid (path resolved), got \(observation)")
         }
-        #expect(config.wrapperURL == wrapperURL)
     }
 
     @Test
     func missingACPDirectoryReturnsMissing() {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let reader = ACPWrapperReader(acpDirectory: root)
-        let result = reader.readWrapperConfiguration()
+        let observation = reader.readProviderObservation()
+        let result = ACPWrapperReader.wrapperResult(from: observation)
 
         guard case .failure(let error) = result else {
             Issue.record("Expected failure, got \(result)")

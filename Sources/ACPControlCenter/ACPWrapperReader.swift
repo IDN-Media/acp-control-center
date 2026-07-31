@@ -26,14 +26,93 @@ struct ACPWrapperReader: Sendable {
         self.processRunner = processRunner
     }
 
-    /// Reads the Kiro ACP plist when identifiable, otherwise the first plist
-    /// in deterministic filename order. Returns `.missing` if no
-    /// plist/wrapper is found and `.invalid` if a wrapper cannot be parsed.
-    func readWrapperConfiguration() -> Result<ACPWrapperConfiguration, ReaderError> {
+    /// Returns a structured provider observation that preserves the configured
+    /// path from the plist. This is the single source of truth for provider
+    /// state per refresh/rescan. Downstream consumers derive the legacy
+    /// `DashboardSnapshot.wrapper` Result from this same observation.
+    ///
+    /// When the path exists but cannot be read (permissions, invalid UTF-8,
+    /// is a directory, etc.), this classifies as `.wrapperInvalid` with a
+    /// safe human-readable reason, not `.configuredPathMissing`.
+    func readProviderObservation() -> ACPProviderObservation {
         guard let wrapperURL = resolveWrapperURL() else {
-            return .failure(.missing(reason: "No ACP plist with an agent path found under \(acpDirectory.path)"))
+            return .noProvider
         }
-        return readWrapperConfiguration(atWrapperURL: wrapperURL)
+
+        let fm = FileManager.default
+        var isDirectory: ObjCBool = false
+        let exists = fm.fileExists(atPath: wrapperURL.path, isDirectory: &isDirectory)
+
+        guard exists else {
+            return .configuredPathMissing(configuredPath: wrapperURL)
+        }
+
+        // Exists but is a directory
+        if isDirectory.boolValue {
+            return .wrapperInvalid(
+                wrapperURL: wrapperURL,
+                reason: "Path is a directory, not a file"
+            )
+        }
+
+        // Exists but not readable as UTF-8
+        let contents: String
+        do {
+            contents = try String(contentsOf: wrapperURL, encoding: .utf8)
+        } catch {
+            return .wrapperInvalid(
+                wrapperURL: wrapperURL,
+                reason: "File exists but cannot be read: \(error.localizedDescription)"
+            )
+        }
+
+        guard let cliExecutableURL = Self.extractExecutable(fromWrapperContents: contents) else {
+            return .wrapperInvalid(
+                wrapperURL: wrapperURL,
+                reason: "Could not locate an executable invoked with 'acp' in wrapper"
+            )
+        }
+
+        let modelID = Self.extractFlagValue(named: "--model", fromWrapperContents: contents)
+        let effort = Self.extractFlagValue(named: "--effort", fromWrapperContents: contents)
+        let isExecutable = fm.isExecutableFile(atPath: wrapperURL.path)
+        let syntaxIsValid = checkZshSyntax(of: wrapperURL)
+
+        let configuration = ACPWrapperConfiguration(
+            wrapperURL: wrapperURL,
+            cliExecutableURL: cliExecutableURL,
+            modelID: modelID,
+            effort: effort,
+            isExecutable: isExecutable,
+            syntaxIsValid: syntaxIsValid
+        )
+
+        if !isExecutable || !syntaxIsValid {
+            return .wrapperInvalid(
+                wrapperURL: wrapperURL,
+                reason: !isExecutable ? "Wrapper is not executable" : "Wrapper has syntax errors"
+            )
+        }
+
+        return .wrapperValid(configuration: configuration)
+    }
+
+    /// Derives the legacy `Result<ACPWrapperConfiguration, ReaderError>` from
+    /// a provider observation. This ensures a single filesystem read is used
+    /// per refresh cycle.
+    static func wrapperResult(
+        from observation: ACPProviderObservation
+    ) -> Result<ACPWrapperConfiguration, ReaderError> {
+        switch observation {
+        case .noProvider:
+            return .failure(.missing(reason: "No ACP provider configured"))
+        case .configuredPathMissing(let configuredPath):
+            return .failure(.missing(reason: "Wrapper file not found at \(configuredPath.path)"))
+        case .wrapperInvalid(let wrapperURL, let reason):
+            return .failure(.invalid(reason: "\(reason) at \(wrapperURL.path)"))
+        case .wrapperValid(let configuration):
+            return .success(configuration)
+        }
     }
 
     /// Reads a wrapper at an explicit URL. Exposed separately so tests can
@@ -101,6 +180,84 @@ struct ACPWrapperReader: Sendable {
     }
 
     // MARK: - Wrapper text parsing
+
+    /// Validates the complete deterministic structure emitted by
+    /// `ACPWrapperManager`. A marker plus one parseable `exec` line is not
+    /// sufficient because arbitrary additional shell commands must not be
+    /// treated as an ACC-owned wrapper.
+    static func isGeneratedManagedWrapper(_ contents: String) -> Bool {
+        var lines = contents.split(
+            separator: "\n",
+            omittingEmptySubsequences: false
+        ).map(String.init)
+        if lines.last == "" {
+            lines.removeLast()
+        }
+        guard lines.count == 7,
+              lines[0] == "#!/bin/zsh",
+              lines[1] == ACPWrapperManager.ownershipMarker,
+              lines[2] == "# Managed by ACP Control Center. Review changes in the app before installing.",
+              isLiteralAbsoluteExport(lines[3], key: "HOME", isPathList: false),
+              isLiteralAbsoluteExport(lines[4], key: "PATH", isPathList: true),
+              lines[5].isEmpty,
+              lines[6].hasPrefix("exec "),
+              let invocation = parseACPInvocation(from: contents),
+              invocation.executable.hasPrefix("/"),
+              !invocation.executable.contains("$"),
+              areGeneratedArguments(invocation.arguments) else {
+            return false
+        }
+        return true
+    }
+
+    private static func isLiteralAbsoluteExport(
+        _ line: String,
+        key: String,
+        isPathList: Bool
+    ) -> Bool {
+        guard let tokens = tokenizeShellLine(line),
+              tokens.count == 2,
+              tokens[0] == "export" else {
+            return false
+        }
+        let prefix = "\(key)="
+        guard tokens[1].hasPrefix(prefix) else { return false }
+        let value = String(tokens[1].dropFirst(prefix.count))
+        guard !value.isEmpty, !value.contains("$") else { return false }
+        if isPathList {
+            return value.split(separator: ":", omittingEmptySubsequences: false)
+                .allSatisfy { $0.hasPrefix("/") }
+        }
+        return value.hasPrefix("/")
+    }
+
+    private static func areGeneratedArguments(_ arguments: [String]) -> Bool {
+        var index = 0
+        if arguments.indices.contains(index), arguments[index] == "--model" {
+            guard arguments.indices.contains(index + 1),
+                  isValidGeneratedModelID(arguments[index + 1]) else {
+                return false
+            }
+            index += 2
+        }
+        if arguments.indices.contains(index), arguments[index] == "--effort" {
+            guard arguments.indices.contains(index + 1),
+                  ACPWrapperEffort(rawValue: arguments[index + 1]) != nil else {
+                return false
+            }
+            index += 2
+        }
+        return index == arguments.count
+    }
+
+    private static func isValidGeneratedModelID(_ value: String) -> Bool {
+        let allowed = CharacterSet.alphanumerics.union(
+            CharacterSet(charactersIn: "._:/-")
+        )
+        return !value.isEmpty
+            && value.count <= 200
+            && value.unicodeScalars.allSatisfy(allowed.contains)
+    }
 
     /// Extracts the executable from a narrow supported wrapper format: one
     /// literal `exec <executable> acp ...` command. Comments, dynamic shell
