@@ -6,6 +6,7 @@ import SwiftUI
 struct DashboardView: View {
     @Bindable var viewModel: DashboardViewModel
     @State private var isShowingWrapperManager = false
+    @State private var wrapperManagerController: WrapperManagerWindowController?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -40,8 +41,17 @@ struct DashboardView: View {
         .task {
             await viewModel.performInitialRefreshIfNeeded()
         }
-        .sheet(isPresented: $isShowingWrapperManager) {
-            ACPWrapperManagerView(viewModel: viewModel)
+        // Present the wrapper manager in its own standalone window (see
+        // WrapperManagerWindowController) instead of a sheet. Sheets attached
+        // to the MenuBarExtra panel dismiss as soon as the user interacts
+        // outside the panel — including clicking a text field inside the
+        // sheet — which made the setup/migration forms unusable.
+        .onChange(of: isShowingWrapperManager) { _, isShowing in
+            guard isShowing else { return }
+            if wrapperManagerController == nil {
+                wrapperManagerController = WrapperManagerWindowController(viewModel: viewModel)
+            }
+            wrapperManagerController?.show()
         }
     }
 
