@@ -296,6 +296,70 @@ struct ACPWrapperManagerView: View {
                 }
                 .font(.caption)
             }
+
+            Divider()
+
+            Text("Migrate to Managed")
+                .font(.subheadline).bold()
+
+            Text(
+                "Create an identical managed copy of this wrapper inside the "
+                    + "app's private directory. Your original file is left untouched; "
+                    + "you will then update the path in Xcode Settings to use the managed copy."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            if viewModel.wrapperPreview == nil {
+                Button("Preview Managed Copy\u{2026}") {
+                    Task { await viewModel.prepareMigrationPreview() }
+                }
+                .font(.caption)
+                .disabled(viewModel.isRefreshing)
+            } else {
+                migrationPreviewFlow
+            }
+        }
+    }
+
+    private var migrationPreviewFlow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let preview = viewModel.wrapperPreview {
+                GroupBox("Managed copy preview") {
+                    ScrollView {
+                        Text(preview.renderedContent)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(minHeight: 100, maxHeight: 180)
+                }
+
+                HStack {
+                    Button("Discard Preview") { viewModel.clearWrapperPreview() }
+                        .font(.caption)
+                    Spacer()
+                    Button("Install Managed Copy") { isConfirmingInstall = true }
+                        .buttonStyle(.borderedProminent)
+                        .font(.caption)
+                        .disabled(viewModel.isRefreshing)
+                }
+            }
+        }
+        .confirmationDialog(
+            "Install the managed copy?",
+            isPresented: $isConfirmingInstall,
+            titleVisibility: .visible
+        ) {
+            Button("Install Managed Copy") {
+                Task { await viewModel.installMigrationPreview() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "The identical copy will be installed with 0700 permissions, syntax-checked, "
+                    + "and verified. Your original unmanaged wrapper is not modified."
+            )
         }
     }
 

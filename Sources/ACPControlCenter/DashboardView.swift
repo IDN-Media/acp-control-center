@@ -225,8 +225,13 @@ struct DashboardView: View {
                 isShowingWrapperManager = true
             }
             .font(.caption)
-        case .unmanagedWrapperActive, .unmanagedWrapperInvalid:
-            // Read-only; no write action available.
+        case .unmanagedWrapperActive:
+            Button("Migrate to Managed\u{2026}") {
+                isShowingWrapperManager = true
+            }
+            .font(.caption)
+        case .unmanagedWrapperInvalid:
+            // Read-only; migration for invalid wrappers is Work Package B.2.
             EmptyView()
         }
     }

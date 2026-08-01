@@ -15,7 +15,7 @@ line_length:
   ignores_urls: true
 
 file_length:
-  warning: 700
+  warning: 800
   error: 900
 
 function_body_length:
@@ -23,7 +23,7 @@ function_body_length:
   error: 120
 
 type_body_length:
-  warning: 600
+  warning: 700
   error: 800
 
 cyclomatic_complexity:

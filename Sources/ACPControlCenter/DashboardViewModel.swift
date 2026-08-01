@@ -278,6 +278,11 @@ final class DashboardViewModel {
             await refresh()
             return
         }
+        // Start each rescan from a clean slate so a stale failure from a
+        // previous operation (e.g. a migration attempt in an earlier session)
+        // cannot linger in the status area after the state has moved on.
+        wrapperManagerStatus = .idle
+        wrapperPreview = nil
         await performFocusedRefresh { [self] generation in
             let wrapperReader = self.wrapperReader
             let wrapperManager = self.wrapperManager
@@ -402,6 +407,70 @@ final class DashboardViewModel {
         wrapperPreview = nil
         if wrapperManagerStatus == .previewReady {
             wrapperManagerStatus = .idle
+        }
+    }
+
+    /// Resets the wrapper manager status area to a clean slate. Called when
+    /// the manager window opens so a stale failure from a previous session
+    /// cannot linger after the lifecycle state has moved on.
+    func resetWrapperManagerStatus() {
+        wrapperPreview = nil
+        wrapperManagerStatus = .idle
+    }
+
+    // MARK: - Unmanaged wrapper migration (Work Package B)
+
+    /// Prepares a migration preview by reading the currently active unmanaged
+    /// wrapper (the one Xcode is using) and re-rendering it into the managed
+    /// ACC format. The source file is never modified.
+    func prepareMigrationPreview() async {
+        guard let active = lifecycleContext.activeConfiguration else {
+            wrapperManagerStatus = .failed(message: "No active unmanaged wrapper to migrate.")
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let manager = self.wrapperManager
+            do {
+                let preview = try await Task.detached {
+                    try manager.migratePreview(from: active.wrapperURL)
+                }.value
+                guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+                self.wrapperPreview = preview
+                self.wrapperManagerStatus = .previewReady
+            } catch {
+                guard self.refreshGeneration == generation else { return }
+                self.wrapperPreview = nil
+                self.wrapperManagerStatus = .failed(message: Self.describeWrapperManagerError(error))
+            }
+        }
+    }
+
+    /// Installs the staged migration preview (re-rendered ACC format) into the
+    /// managed location, then reclassifies from fresh provider observation so
+    /// the UI reflects the true post-migration state. The source unmanaged
+    /// wrapper is left untouched.
+    func installMigrationPreview() async {
+        guard let preview = wrapperPreview else {
+            wrapperManagerStatus = .failed(message: "Preview the wrapper before migrating it.")
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let manager = self.wrapperManager
+            do {
+                _ = try await Task.detached {
+                    try manager.migrateInstall(preview)
+                }.value
+                guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+                self.managedWrapperExists = manager.managedWrapperExists
+                self.wrapperPreview = nil
+                self.lifecycleContext = self.classifiedLifecycleContext()
+                self.wrapperManagerStatus = self.managedWrapperExists ? .installed : .failed(
+                    message: "Wrapper migrated but is no longer valid at the managed path."
+                )
+            } catch {
+                guard self.refreshGeneration == generation else { return }
+                self.wrapperManagerStatus = .failed(message: Self.describeWrapperManagerError(error))
+            }
         }
     }
 

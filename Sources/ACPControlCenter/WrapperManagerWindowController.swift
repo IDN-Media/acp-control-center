@@ -40,6 +40,10 @@ final class WrapperManagerWindowController: NSWindowController {
     /// Shows the window and brings it to the front.
     func show() {
         guard let window else { return }
+        // Start each open from a clean slate: a failure from a previous
+        // operation (e.g. a migration attempt in an earlier session) must not
+        // linger in the status area once the state has moved on.
+        viewModel.resetWrapperManagerStatus()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
