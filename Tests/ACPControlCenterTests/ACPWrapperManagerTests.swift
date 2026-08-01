@@ -383,6 +383,109 @@ struct ACPWrapperManagerTests {
         #expect(FileManager.default.fileExists(atPath: viewModel.managedWrapperURL.path))
         #expect(viewModel.lifecycleContext.state == .managedWrapperInactive)
     }
+
+    // MARK: - Work Package B: migration of an unmanaged wrapper
+
+    @Test
+    func migratePreviewRendersACCFormatWithoutWriting() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("manual-wrapper.sh")
+        let sourceContent = """
+        #!/bin/zsh
+        # My manual wrapper
+        exec '/bin/echo' acp --model 'claude-opus-4.6' --effort 'high'
+        """
+        try sourceContent.write(to: source, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: source.path)
+
+        let manager = ACPWrapperManager(managedRoot: root.appendingPathComponent("managed"))
+        let preview = try manager.migratePreview(from: source)
+
+        // The preview is re-rendered into the ACC canonical format, not a
+        // literal copy: it carries the ownership marker and the strict
+        // 7-line structure, and preserves the source's CLI/model/effort.
+        #expect(preview.renderedContent.contains("#!/bin/zsh"))
+        #expect(preview.renderedContent.contains(ACPWrapperManager.ownershipMarker))
+        #expect(preview.renderedContent.contains("exec '/bin/echo' acp --model 'claude-opus-4.6' --effort 'high'"))
+        #expect(preview.existingContent == nil)
+        // No file is written by preview.
+        #expect(!FileManager.default.fileExists(atPath: preview.wrapperURL.path))
+        // The source is untouched.
+        #expect(try String(contentsOf: source, encoding: .utf8) == sourceContent)
+    }
+
+    @Test
+    func migrateInstallWritesACCFormatAndLeavesSourceIntact() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("manual-wrapper.sh")
+        let sourceContent = """
+        #!/bin/zsh
+        # My manual wrapper
+        exec '/bin/echo' acp
+        """
+        try sourceContent.write(to: source, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: source.path)
+
+        let manager = ACPWrapperManager(managedRoot: root.appendingPathComponent("managed"))
+        let preview = try manager.migratePreview(from: source)
+        let result = try manager.migrateInstall(preview)
+
+        #expect(result.wrapperURL == manager.wrapperURL)
+        // The managed wrapper is the ACC-rendered format (marker + exec line),
+        // not a literal copy, and passes full ownership validation.
+        let installed = try String(contentsOf: manager.wrapperURL, encoding: .utf8)
+        #expect(installed.contains(ACPWrapperManager.ownershipMarker))
+        #expect(installed.contains("exec '/bin/echo' acp"))
+        #expect(manager.managedWrapperExists)
+        // The managed wrapper is executable.
+        #expect(FileManager.default.isExecutableFile(atPath: manager.wrapperURL.path))
+        // The source is untouched.
+        #expect(try String(contentsOf: source, encoding: .utf8) == sourceContent)
+    }
+
+    @Test
+    func migratePreviewRejectsWhenManagedDestinationNotEmpty() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("manual-wrapper.sh")
+        try "#!/bin/zsh\nexec '/bin/echo' acp\n".write(to: source, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: source.path)
+
+        // Pre-create the managed destination with a foreign file.
+        let managedRoot = root.appendingPathComponent("managed")
+        try FileManager.default.createDirectory(at: managedRoot, withIntermediateDirectories: true)
+        let managedWrapper = managedRoot.appendingPathComponent("kiro-acp-xcode.sh")
+        try "#!/bin/zsh\necho foreign\n".write(to: managedWrapper, atomically: true, encoding: .utf8)
+
+        let manager = ACPWrapperManager(managedRoot: managedRoot)
+        #expect(throws: ACPWrapperManagerError.firstInstallDestinationNotEmpty) {
+            try manager.migratePreview(from: source)
+        }
+    }
+
+    @Test
+    func migrateInstallRejectsSymlinkAtManagedDestination() throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("manual-wrapper.sh")
+        try "#!/bin/zsh\nexec '/bin/echo' acp\n".write(to: source, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: source.path)
+
+        let managedRoot = root.appendingPathComponent("managed")
+        try FileManager.default.createDirectory(at: managedRoot, withIntermediateDirectories: true)
+        let target = root.appendingPathComponent("some-target.sh")
+        try "#!/bin/zsh\n".write(to: target, atomically: true, encoding: .utf8)
+        // Symlink at the managed destination.
+        let managedWrapper = managedRoot.appendingPathComponent("kiro-acp-xcode.sh")
+        try FileManager.default.createSymbolicLink(at: managedWrapper, withDestinationURL: target)
+
+        let manager = ACPWrapperManager(managedRoot: managedRoot)
+        #expect(throws: ACPWrapperManagerError.firstInstallDestinationNotEmpty) {
+            try manager.migratePreview(from: source)
+        }
+    }
 }
 
 private final class FirstValidationOnly: @unchecked Sendable {

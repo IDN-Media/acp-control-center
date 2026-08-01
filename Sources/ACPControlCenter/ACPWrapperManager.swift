@@ -293,6 +293,142 @@ struct ACPWrapperManager: Sendable {
         return ACPWrapperInstallResult(wrapperURL: wrapperURL, backupURL: backupURL)
     }
 
+    // MARK: - Unmanaged wrapper migration (Work Package B)
+
+    /// Produces an in-memory migration preview that converts an existing
+    /// unmanaged wrapper into the ACC-managed format.
+    ///
+    /// The source file is only read, never modified. Its ACP invocation is
+    /// extracted (CLI executable, model, effort) and re-rendered into the
+    /// canonical ACC format so the managed copy passes ownership validation
+    /// (marker + strict structure). Execution behaviour is preserved: the
+    /// same CLI executable is invoked with the same model/effort flags.
+    ///
+    /// Rejects the preview immediately if anything already exists at the
+    /// managed target (including symlinks, non-regular files, foreign
+    /// executables, etc.).
+    func migratePreview(from sourceURL: URL) throws -> ACPWrapperPreview {
+        let fileInfo = managedFileInfo
+        guard fileInfo.isAbsentAndSafe else {
+            throw ACPWrapperManagerError.firstInstallDestinationNotEmpty
+        }
+        let contents: String
+        do {
+            contents = try String(contentsOf: sourceURL, encoding: .utf8)
+        } catch {
+            throw ACPWrapperManagerError.ioFailure(reason: "Unmanaged wrapper is unreadable")
+        }
+        // The source must be a parseable ACP wrapper so we can re-render it.
+        guard let invocation = ACPWrapperReader.parseACPInvocation(from: contents),
+              !invocation.executable.contains("$") else {
+            throw ACPWrapperManagerError.ioFailure(reason: "Unmanaged wrapper is not a parseable ACP invocation")
+        }
+        // Preserve model/effort if the source declared them.
+        let modelID = ACPWrapperReader.extractFlagValue(named: "--model", fromWrapperContents: contents)
+        let effortRaw = ACPWrapperReader.extractFlagValue(named: "--effort", fromWrapperContents: contents)
+        let effort = effortRaw.flatMap(ACPWrapperEffort.init(rawValue:))
+        let request = ACPWrapperRequest(
+            cliExecutableURL: URL(fileURLWithPath: invocation.executable),
+            modelID: modelID,
+            effort: effort
+        )
+        // Same strict validation as first-install (invalid model, unavailable
+        // CLI, etc. all rejected before any preview).
+        try validate(request)
+        return ACPWrapperPreview(
+            request: request,
+            wrapperURL: wrapperURL,
+            renderedContent: render(request),
+            existingContent: nil
+        )
+    }
+
+    /// Installs a migration preview: copies the literal unmanaged wrapper
+    /// content into the managed location with the same safe-write guarantees
+    /// as `firstInstall` (destination absent & safe, symlink rejection,
+    /// 0700 permissions, zsh -n, read-back). The source file is left
+    /// untouched.
+    func migrateInstall(_ preview: ACPWrapperPreview) throws -> ACPWrapperInstallResult {
+        guard preview.wrapperURL.standardizedFileURL == wrapperURL else {
+            throw ACPWrapperManagerError.ioFailure(reason: "Preview destination is not managed by this app")
+        }
+        guard preview.existingContent == nil else {
+            throw ACPWrapperManagerError.ioFailure(reason: "Migration preview must have nil existing content")
+        }
+
+        // Re-check: destination must still be absent
+        guard managedFileInfo.isAbsentAndSafe else {
+            throw ACPWrapperManagerError.firstInstallDestinationNotEmpty
+        }
+
+        // Reject symlinked ancestors BEFORE creating directories.
+        try rejectSymbolicLink(at: wrapperURL)
+        try createPrivateDirectory(at: managedRoot)
+        // Re-verify after directory creation (race with a new symlink).
+        try rejectSymbolicLink(at: wrapperURL)
+
+        let temporaryURL = managedRoot.appendingPathComponent(".wrapper-\(UUID().uuidString).tmp")
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
+        try write(preview.renderedContent, to: temporaryURL, permissions: 0o700)
+        guard syntaxValidator(temporaryURL) else {
+            throw ACPWrapperManagerError.syntaxValidationFailed
+        }
+
+        // Final re-check before atomic move
+        guard managedFileInfo.isAbsentAndSafe else {
+            throw ACPWrapperManagerError.firstInstallDestinationNotEmpty
+        }
+
+        try beforeFirstInstallMove()
+
+        // Exclusive create at the destination; verification scoped to the
+        // exact inode ACC created (a concurrent replacement is never unlinked).
+        let destinationPath = wrapperURL.path
+        let creationResult = destinationPath.withCString { fdPath in
+            Darwin.open(fdPath, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, mode_t(0o700))
+        }
+        guard creationResult >= 0 else {
+            throw ACPWrapperManagerError.firstInstallDestinationNotEmpty
+        }
+        let destinationFD = creationResult
+        var installedByThisOperation = false
+        do {
+            let writtenBytes = preview.renderedContent.withCString { bytes in
+                Darwin.write(destinationFD, bytes, preview.renderedContent.utf8.count)
+            }
+            guard writtenBytes == preview.renderedContent.utf8.count else {
+                Darwin.close(destinationFD)
+                throw ACPWrapperManagerError.ioFailure(reason: "Could not write managed wrapper content")
+            }
+            if Darwin.fsync(destinationFD) != 0 {
+                Darwin.close(destinationFD)
+                throw ACPWrapperManagerError.ioFailure(reason: "Could not flush managed wrapper content")
+            }
+            if Darwin.close(destinationFD) != 0 {
+                throw ACPWrapperManagerError.ioFailure(reason: "Could not close managed wrapper file")
+            }
+            installedByThisOperation = true
+            try setPermissions(0o700, at: wrapperURL)
+            let writtenContent = try String(contentsOf: wrapperURL, encoding: .utf8)
+            guard writtenContent == preview.renderedContent, syntaxValidator(wrapperURL) else {
+                try? removeFirstInstallArtifactIfUnchanged(preview.renderedContent)
+                throw ACPWrapperManagerError.postWriteVerificationFailed
+            }
+        } catch let error as ACPWrapperManagerError {
+            if installedByThisOperation {
+                try? removeFirstInstallArtifactIfUnchanged(preview.renderedContent)
+            }
+            throw error
+        } catch {
+            if installedByThisOperation {
+                try? removeFirstInstallArtifactIfUnchanged(preview.renderedContent)
+            }
+            throw ACPWrapperManagerError.ioFailure(reason: "Migration install failed: \(error)")
+        }
+
+        return ACPWrapperInstallResult(wrapperURL: wrapperURL, backupURL: nil)
+    }
+
     /// Returns only backups created under the app-managed backup directory,
     /// newest first. It never scans outside that single directory.
     func recentBackups(limit: Int = 10) -> [URL] {

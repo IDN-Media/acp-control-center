@@ -326,7 +326,12 @@ struct ACPWrapperReader: Sendable {
         return nil
     }
 
-    private static func parseACPInvocation(from contents: String) -> (executable: String, arguments: [String])? {
+    /// Parses the ACP invocation (executable + arguments) from a narrow
+    /// supported wrapper format: one literal `exec <executable> acp ...`
+    /// command. Comments, dynamic shell variables, and unrelated commands are
+    /// ignored rather than guessed. Returns nil when no parseable invocation
+    /// exists.
+    static func parseACPInvocation(from contents: String) -> (executable: String, arguments: [String])? {
         for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             guard !line.isEmpty, !line.hasPrefix("#"), line.hasPrefix("exec ") else { continue }
