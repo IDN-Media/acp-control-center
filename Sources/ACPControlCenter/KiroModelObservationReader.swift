@@ -97,6 +97,41 @@ struct KiroModelObservationReader: Sendable {
         return .failure(.missing(reason: "No GenerateAssistantResponse records found"))
     }
 
+    // MARK: - Model ID collection
+
+    /// Collects every distinct `modelId` observed across all discovered log
+    /// files, newest-first by first appearance in the newest file. Used to
+    /// populate the edit dropdown so users pick models proven to work with
+    /// their Kiro account instead of guessing.
+    func allObservedModelIDs() -> [String] {
+        let files = discoverLogFiles()
+        var seen = Set<String>()
+        var result: [String] = []
+        // Newest files first (most recent observations carry the most
+        // relevant model IDs).
+        let orderedFiles = files.sorted { left, right in
+            let leftDate = try? left.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            let rightDate = try? right.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            return (leftDate ?? .distantPast) > (rightDate ?? .distantPast)
+        }
+        for file in orderedFiles {
+            do {
+                try UTF8LineScanner.scan(file) { line in
+                    guard line.contains("Sending GenerateAssistantResponse") else { return }
+                    guard let record = try? JSONDecoder().decode(RawLogLine.self, from: Data(line.utf8)),
+                          let message = record.message,
+                          let modelID = Self.extractValue(for: "modelId", from: message),
+                          !modelID.isEmpty,
+                          seen.insert(modelID).inserted else { return }
+                    result.append(modelID)
+                }
+            } catch {
+                continue
+            }
+        }
+        return result
+    }
+
     // MARK: - Line parsing
 
     private func parseObservationLine(_ line: String, clientName: String?, sourceURL: URL) -> ModelObservation? {

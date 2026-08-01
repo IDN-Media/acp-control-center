@@ -70,6 +70,18 @@ final class DashboardViewModel {
         wrapperManager.wrapperURL
     }
 
+    /// Backups created under the app-managed backup directory, newest first.
+    func recentBackups(limit: Int = 10) -> [URL] {
+        wrapperManager.recentBackups(limit: limit)
+    }
+
+    /// Every distinct model ID observed in Kiro logs, newest first. Populates
+    /// the edit dropdown so users pick models proven to work with their
+    /// account instead of guessing.
+    func observedModelIDs() -> [String] {
+        modelReader.allObservedModelIDs()
+    }
+
     // MARK: - Menu bar label
 
     /// The compact usage/status text displayed beside the emoji in the menu
@@ -389,7 +401,10 @@ final class DashboardViewModel {
                 // post-install state truthful if a concurrent process removed
                 // or replaced the wrapper between install and refresh.
                 self.lifecycleContext = self.classifiedLifecycleContext()
-                self.wrapperManagerStatus = self.managedWrapperExists ? .installed : .failed(
+                self.wrapperManagerStatus = self.managedWrapperExists ? .installed(
+                    modelID: preview.request.modelID,
+                    effort: preview.request.effort?.rawValue
+                ) : .failed(
                     message: "Wrapper installed but is no longer valid at the managed path."
                 )
             } catch {
@@ -416,6 +431,139 @@ final class DashboardViewModel {
     func resetWrapperManagerStatus() {
         wrapperPreview = nil
         wrapperManagerStatus = .idle
+    }
+
+    // MARK: - Managed wrapper editing
+
+    /// States from which editing the managed wrapper is allowed: the wrapper
+    /// exists (so `install` can back up and replace it) regardless of whether
+    /// Xcode is already using it.
+    private static let editAllowedStates: Set<ACPWrapperLifecycleState> = [
+        .managedWrapperActive, .managedWrapperInactive
+    ]
+
+    /// Returns nil if editing is authorized, or an error describing why not.
+    private func checkEditAuthorization() -> WrapperSetupAuthorizationError? {
+        guard Self.editAllowedStates.contains(lifecycleContext.state) else {
+            return .lifecycleStateProhibitsSetup(lifecycleContext.state)
+        }
+        guard wrapperManager.managedWrapperExists else {
+            return .managedDestinationNotEmpty
+        }
+        return nil
+    }
+
+    /// Prepares an edit preview by re-rendering the managed wrapper with new
+    /// model/effort, keeping the CLI executable from the currently active
+    /// configuration. No file is written.
+    func prepareEditPreview(modelID: String?, effort: ACPWrapperEffort?) async {
+        if let authError = checkEditAuthorization() {
+            wrapperManagerStatus = .failed(message: Self.describeAuthError(authError))
+            return
+        }
+        // CLI executable is fixed by the existing managed wrapper, never
+        // user-editable. Fall back to the configured CLI snapshot if the
+        // active configuration cannot be resolved.
+        let cliURL = lifecycleContext.activeConfiguration?.cliExecutableURL
+            ?? snapshot?.cli.executableURL
+        guard let cliURL else {
+            wrapperManagerStatus = .failed(message: "Cannot resolve the CLI executable for the managed wrapper.")
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let manager = self.wrapperManager
+            let request = ACPWrapperRequest(
+                cliExecutableURL: cliURL,
+                modelID: modelID,
+                effort: effort
+            )
+            do {
+                let preview = try await Task.detached {
+                    try manager.preview(request)
+                }.value
+                guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+                self.wrapperPreview = preview
+                self.wrapperManagerStatus = .previewReady
+            } catch {
+                guard self.refreshGeneration == generation else { return }
+                self.wrapperPreview = nil
+                self.wrapperManagerStatus = .failed(message: Self.describeWrapperManagerError(error))
+            }
+        }
+    }
+
+    /// Installs an edit preview: backs up the current managed wrapper, then
+    /// replaces it atomically, verifying parse + syntax + marker afterwards.
+    /// On verification failure the previous version is restored automatically.
+    /// Xcode keeps pointing at the same managed path, so no Xcode update is
+    /// needed after an edit.
+    func installEditPreview() async {
+        guard let preview = wrapperPreview else {
+            wrapperManagerStatus = .failed(message: "Preview the wrapper before installing it.")
+            return
+        }
+        // Re-check authorization at install time (race detection).
+        if let authError = checkEditAuthorization() {
+            wrapperManagerStatus = .failed(message: Self.describeAuthError(authError))
+            return
+        }
+        await performFocusedRefresh { [self] generation in
+            let manager = self.wrapperManager
+            do {
+                _ = try await Task.detached {
+                    try manager.install(preview)
+                }.value
+                guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+                self.managedWrapperExists = manager.managedWrapperExists
+                self.wrapperPreview = nil
+                self.lifecycleContext = self.classifiedLifecycleContext()
+                self.wrapperManagerStatus = self.managedWrapperExists ? .installed(
+                    modelID: preview.request.modelID,
+                    effort: preview.request.effort?.rawValue
+                ) : .failed(
+                    message: "Wrapper updated but is no longer valid at the managed path."
+                )
+            } catch {
+                guard self.refreshGeneration == generation else { return }
+                self.wrapperManagerStatus = .failed(message: Self.describeWrapperManagerError(error))
+            }
+        }
+    }
+
+    // MARK: - Managed wrapper backup history & rollback
+
+    /// All managed-wrapper backups, newest first. Computed on demand so the
+    /// list stays fresh after each install/edit/rollback.
+    var backupHistory: [URL] {
+        wrapperManager.recentBackups(limit: 10)
+    }
+
+    /// Restores an app-created backup to the managed wrapper destination.
+    /// The current wrapper is backed up first (double safety net), then the
+    /// backup is restored atomically with parse + syntax + marker
+    /// verification; on failure the pre-rollback version is restored.
+    /// The manager itself rejects backups outside its own backup directory.
+    func restoreBackup(_ backupURL: URL) async {
+        await performFocusedRefresh { [self] generation in
+            let manager = self.wrapperManager
+            do {
+                try await Task.detached {
+                    try manager.rollback(backupURL: backupURL, wrapperURL: manager.wrapperURL)
+                }.value
+                guard self.refreshGeneration == generation, !Task.isCancelled else { return }
+                self.managedWrapperExists = manager.managedWrapperExists
+                self.lifecycleContext = self.classifiedLifecycleContext()
+                self.wrapperManagerStatus = self.managedWrapperExists ? .installed(
+                    modelID: nil,
+                    effort: nil
+                ) : .failed(
+                    message: "Rollback completed but the managed wrapper is no longer valid."
+                )
+            } catch {
+                guard self.refreshGeneration == generation else { return }
+                self.wrapperManagerStatus = .failed(message: Self.describeWrapperManagerError(error))
+            }
+        }
     }
 
     // MARK: - Unmanaged wrapper migration (Work Package B)
@@ -464,7 +612,10 @@ final class DashboardViewModel {
                 self.managedWrapperExists = manager.managedWrapperExists
                 self.wrapperPreview = nil
                 self.lifecycleContext = self.classifiedLifecycleContext()
-                self.wrapperManagerStatus = self.managedWrapperExists ? .installed : .failed(
+                self.wrapperManagerStatus = self.managedWrapperExists ? .installed(
+                    modelID: preview.request.modelID,
+                    effort: preview.request.effort?.rawValue
+                ) : .failed(
                     message: "Wrapper migrated but is no longer valid at the managed path."
                 )
             } catch {

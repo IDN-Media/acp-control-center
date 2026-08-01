@@ -9,6 +9,9 @@ struct ACPWrapperManagerView: View {
     @State private var modelID: String
     @State private var effortValue: String
     @State private var isConfirmingInstall = false
+    @State private var isConfirmingEdit = false
+    @State private var restoreTarget: URL?
+    @State private var isCustomModel = false
 
     init(viewModel: DashboardViewModel) {
         self.viewModel = viewModel
@@ -224,6 +227,10 @@ struct ACPWrapperManagerView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+
+            Divider()
+            editFormSection
+            backupHistorySection
         }
     }
 
@@ -244,9 +251,179 @@ struct ACPWrapperManagerView: View {
                 .font(.caption)
             }
 
-            Text("Editing the managed wrapper is available in a future update.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Divider()
+            editFormSection
+            backupHistorySection
+        }
+        .confirmationDialog(
+            "Install this edit?",
+            isPresented: $isConfirmingEdit,
+            titleVisibility: .visible
+        ) {
+            Button("Install Edit") {
+                Task { await viewModel.installEditPreview() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "The current wrapper will be backed up, then replaced atomically. "
+                    + "If verification fails, the previous version is restored automatically."
+            )
+        }
+    }
+
+    /// The model/effort edit form with preview and install actions. Shared by
+    /// the active and inactive managed states.
+    private var editFormSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Edit Wrapper")
+                .font(.subheadline).bold()
+
+            Text(
+                .init(
+                    "Change the model or effort used by the managed wrapper. "
+                        + "The CLI executable stays as configured; Xcode keeps pointing "
+                        + "at the same managed path, so no Xcode update is needed. "
+                        + "[View available models](https://kiro.dev/docs/cli/models/)."
+                )
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Form {
+                Picker("Model", selection: $modelID) {
+                    Text("Auto (default)").tag("")
+                    ForEach(observedModels, id: \.self) { model in
+                        Text(model).tag(model)
+                    }
+                    Text("Custom\u{2026}").tag("__custom__")
+                }
+                .onChange(of: modelID) { _, newValue in
+                    if newValue == "__custom__" {
+                        modelID = ""
+                        isCustomModel = true
+                    } else if !newValue.isEmpty {
+                        isCustomModel = false
+                    }
+                }
+
+                if isCustomModel {
+                    TextField("Model ID (e.g. claude-opus-4.6)", text: $modelID)
+                }
+
+                Picker("Effort", selection: $effortValue) {
+                    Text("Unspecified").tag("")
+                    ForEach(ACPWrapperEffort.allCases, id: \.rawValue) { effort in
+                        Text(effort.rawValue).tag(effort.rawValue)
+                    }
+                }
+            }
+            .formStyle(.grouped)
+
+            HStack {
+                Button("Preview Edit") {
+                    Task {
+                        await viewModel.prepareEditPreview(
+                            modelID: modelID.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                            effort: ACPWrapperEffort(rawValue: effortValue)
+                        )
+                    }
+                }
+                .disabled(viewModel.isRefreshing)
+
+                if viewModel.isRefreshing {
+                    ProgressView().controlSize(.small)
+                }
+                Spacer()
+                Button("Discard Preview") { viewModel.clearWrapperPreview() }
+                    .font(.caption)
+                    .disabled(viewModel.wrapperPreview == nil)
+            }
+
+            if let preview = viewModel.wrapperPreview {
+                GroupBox("Edit preview") {
+                    ScrollView {
+                        Text(preview.renderedContent)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(minHeight: 100, maxHeight: 180)
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Install Edit") { isConfirmingEdit = true }
+                        .buttonStyle(.borderedProminent)
+                        .font(.caption)
+                        .disabled(viewModel.isRefreshing)
+                }
+            }
+        }
+    }
+
+    /// Model IDs observed in Kiro logs plus the implicit auto default.
+    private var observedModels: [String] {
+        viewModel.observedModelIDs()
+    }
+
+    // MARK: - Managed wrapper backup history & rollback
+
+    private var backupHistorySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+
+            Text("History & Rollback")
+                .font(.subheadline).bold()
+
+            Text(
+                "Every install, edit, and migration backs up the previous wrapper "
+                    + "version. Restore any of them at any time."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            let backups = viewModel.backupHistory
+            if backups.isEmpty {
+                Text("No backups yet. Backups are created when you install, edit, or migrate a wrapper.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(backups, id: \.path) { backupURL in
+                    HStack {
+                        Text(backupURL.deletingPathExtension().lastPathComponent)
+                            .font(.caption.monospaced())
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button("Restore") { restoreTarget = backupURL }
+                            .font(.caption)
+                            .disabled(viewModel.isRefreshing)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .confirmationDialog(
+            "Restore this version?",
+            isPresented: Binding(
+                get: { restoreTarget != nil },
+                set: { if !$0 { restoreTarget = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Restore") {
+                if let target = restoreTarget {
+                    Task { await viewModel.restoreBackup(target) }
+                }
+                restoreTarget = nil
+            }
+            Button("Cancel", role: .cancel) { restoreTarget = nil }
+        } message: {
+            Text(
+                "The current wrapper will be backed up first, then replaced with "
+                    + "this backup. If verification fails, the current version is restored automatically."
+            )
         }
     }
 
@@ -413,12 +590,28 @@ struct ACPWrapperManagerView: View {
                 systemImage: "doc.text.magnifyingglass"
             )
             .foregroundStyle(.blue)
-        case .installed:
-            Label(
-                "Wrapper installed and verified. Add its path through Xcode Settings, then use Rescan Xcode.",
-                systemImage: "checkmark.shield"
-            )
-            .foregroundStyle(.green)
+        case .installed(let modelID, let effort):
+            VStack(alignment: .leading, spacing: 4) {
+                Label(
+                    "Wrapper installed and verified.",
+                    systemImage: "checkmark.shield"
+                )
+                .foregroundStyle(.green)
+                HStack(spacing: 12) {
+                    Text("Model: \(modelID ?? "auto")")
+                    Text("Effort: \(effort ?? "unspecified")")
+                    Text("Path: \(viewModel.managedWrapperURL.path)")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .font(.caption2.monospaced())
+                .foregroundStyle(.secondary)
+                if viewModel.lifecycleContext.state != .managedWrapperActive {
+                    Text("Add its path through Xcode Settings, then use Rescan Xcode.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
