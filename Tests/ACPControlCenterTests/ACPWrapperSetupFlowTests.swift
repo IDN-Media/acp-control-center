@@ -104,7 +104,7 @@ struct ACPWrapperSetupFlowTests {
         #expect(viewModel.wrapperManagerStatus == .previewReady)
 
         await viewModel.installWrapperPreview()
-        #expect(viewModel.wrapperManagerStatus == .installed)
+        #expect(viewModel.wrapperManagerStatus == .installed(modelID: "claude-opus-4.6", effort: "high"))
         #expect(FileManager.default.fileExists(atPath: viewModel.managedWrapperURL.path))
         #expect(viewModel.managedWrapperExists == true)
         #expect(viewModel.lifecycleContext.state == .managedWrapperInactive)

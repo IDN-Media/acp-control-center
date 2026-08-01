@@ -157,7 +157,10 @@ struct ACPWrapperConfiguration: Equatable, Sendable {
 enum ACPWrapperManagerStatus: Equatable, Sendable {
     case idle
     case previewReady
-    case installed
+    /// Installed and verified. Carries the details of what is now in place
+    /// so the UI can show a transparent verification summary (model, effort,
+    /// path) rather than a bare success message.
+    case installed(modelID: String?, effort: String?)
     case failed(message: String)
 }
 

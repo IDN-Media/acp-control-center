@@ -48,11 +48,21 @@ struct DashboardView: View {
         // sheet — which made the setup/migration forms unusable.
         .onChange(of: isShowingWrapperManager) { _, isShowing in
             guard isShowing else { return }
-            if wrapperManagerController == nil {
-                wrapperManagerController = WrapperManagerWindowController(viewModel: viewModel)
-            }
-            wrapperManagerController?.show()
+            showWrapperManager()
         }
+    }
+
+    /// Opens (or re-opens) the standalone wrapper manager window. Always
+    /// calls `show()` so clicking the button a second time after closing the
+    /// window brings it back — the state flag alone would not re-trigger
+    /// `onChange` because it is already `true`.
+    private func showWrapperManager() {
+        if wrapperManagerController == nil {
+            wrapperManagerController = WrapperManagerWindowController(viewModel: viewModel)
+        }
+        wrapperManagerController?.show()
+        // Reset so the next click on any action button re-triggers the flow.
+        isShowingWrapperManager = false
     }
 
     private var header: some View {
@@ -205,29 +215,32 @@ struct DashboardView: View {
         switch viewModel.lifecycleContext.state {
         case .noProvider:
             Button("Set Up ACP Wrapper\u{2026}") {
-                isShowingWrapperManager = true
+                showWrapperManager()
             }
             .font(.caption)
         case .configuredPathMissing:
             Button("Create Managed Replacement\u{2026}") {
-                isShowingWrapperManager = true
+                showWrapperManager()
             }
             .font(.caption)
         case .managedWrapperInactive:
             Button("Finish Xcode Setup\u{2026}") {
-                isShowingWrapperManager = true
+                showWrapperManager()
             }
             .font(.caption)
         case .managedWrapperActive:
-            EmptyView()
+            Button("Manage Wrapper\u{2026}") {
+                showWrapperManager()
+            }
+            .font(.caption)
         case .managedWrapperInvalid:
             Button("View Problem\u{2026}") {
-                isShowingWrapperManager = true
+                showWrapperManager()
             }
             .font(.caption)
         case .unmanagedWrapperActive:
             Button("Migrate to Managed\u{2026}") {
-                isShowingWrapperManager = true
+                showWrapperManager()
             }
             .font(.caption)
         case .unmanagedWrapperInvalid:

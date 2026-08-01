@@ -379,9 +379,118 @@ struct ACPWrapperManagerTests {
         #expect(!FileManager.default.fileExists(atPath: viewModel.managedWrapperURL.path))
 
         await viewModel.installWrapperPreview()
-        #expect(viewModel.wrapperManagerStatus == .installed)
+        #expect(viewModel.wrapperManagerStatus == .installed(modelID: "model-one", effort: "medium"))
         #expect(FileManager.default.fileExists(atPath: viewModel.managedWrapperURL.path))
         #expect(viewModel.lifecycleContext.state == .managedWrapperInactive)
+    }
+
+    // MARK: - Edit the managed wrapper
+
+    @MainActor
+    private func makeManagedViewModel(
+        root: URL,
+        managedRoot: URL
+    ) async -> DashboardViewModel {
+        let cliURL = root.appendingPathComponent("kiro-cli")
+        let cliScript = """
+        #!/bin/zsh
+        if [[ "$1" == "--version" ]]; then
+          print "kiro-cli 9.9.9"
+        else
+          print "Estimated Usage | resets on 2026-08-01 | KIRO PRO"
+          print "Credits (1 of 100 covered in plan)"
+        fi
+        """
+        try? cliScript.write(to: cliURL, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: 0o700)],
+            ofItemAtPath: cliURL.path
+        )
+        let viewModel = DashboardViewModel(
+            cliResolver: KiroCLIResolver(executableURL: cliURL),
+            usageReader: KiroUsageReader(logsRoot: root.appendingPathComponent("usage")),
+            modelReader: KiroModelObservationReader(logsRoot: root.appendingPathComponent("model")),
+            wrapperReader: ACPWrapperReader(acpDirectory: root.appendingPathComponent("xcode")),
+            wrapperManager: ACPWrapperManager(managedRoot: managedRoot),
+            usageLogsRoot: root.appendingPathComponent("usage"),
+            modelLogsRoot: root.appendingPathComponent("model")
+        )
+        await viewModel.refresh()
+        return viewModel
+    }
+
+    @Test @MainActor
+    func viewModelEditsManagedWrapperModelAndEffort() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let managedRoot = root.appendingPathComponent("managed")
+        let viewModel = await makeManagedViewModel(root: root, managedRoot: managedRoot)
+
+        await viewModel.prepareWrapperPreview(modelID: "model-one", effort: .medium)
+        await viewModel.installWrapperPreview()
+        #expect(viewModel.lifecycleContext.state == .managedWrapperInactive)
+
+        await viewModel.prepareEditPreview(modelID: "model-two", effort: .high)
+        #expect(viewModel.wrapperManagerStatus == .previewReady)
+        #expect(viewModel.wrapperPreview?.renderedContent.contains("--model 'model-two'") == true)
+        #expect(viewModel.wrapperPreview?.renderedContent.contains("--effort 'high'") == true)
+
+        await viewModel.installEditPreview()
+        #expect(viewModel.wrapperManagerStatus == .installed(modelID: "model-two", effort: "high"))
+        #expect(viewModel.managedWrapperExists)
+        let installed = try String(contentsOf: viewModel.managedWrapperURL, encoding: .utf8)
+        #expect(installed.contains("--model 'model-two'"))
+        #expect(installed.contains("--effort 'high'"))
+        // A backup of the previous version exists.
+        #expect(!viewModel.recentBackups().isEmpty)
+    }
+
+    @Test @MainActor
+    func viewModelEditRequiresExistingManagedWrapper() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let managedRoot = root.appendingPathComponent("managed")
+        let viewModel = await makeManagedViewModel(root: root, managedRoot: managedRoot)
+
+        // No managed wrapper exists yet → edit must be rejected.
+        await viewModel.prepareEditPreview(modelID: "model-two", effort: .high)
+        #expect(viewModel.wrapperManagerStatus != .previewReady)
+    }
+
+    // MARK: - Backup history & rollback
+
+    @Test @MainActor
+    func viewModelBackupHistoryListsAndRestoresBackup() async throws {
+        let root = try makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let managedRoot = root.appendingPathComponent("managed")
+        let viewModel = await makeManagedViewModel(root: root, managedRoot: managedRoot)
+
+        // Install v1, then edit to v2 → a backup of v1 exists.
+        await viewModel.prepareWrapperPreview(modelID: "model-one", effort: .medium)
+        await viewModel.installWrapperPreview()
+        let v1Content = try String(contentsOf: viewModel.managedWrapperURL, encoding: .utf8)
+        #expect(v1Content.contains("--model 'model-one'"))
+
+        await viewModel.prepareEditPreview(modelID: "model-two", effort: .high)
+        await viewModel.installEditPreview()
+        let v2Content = try String(contentsOf: viewModel.managedWrapperURL, encoding: .utf8)
+        #expect(v2Content.contains("--model 'model-two'"))
+
+        // History lists the v1 backup.
+        let history = viewModel.backupHistory
+        #expect(!history.isEmpty)
+        let backupOfV1 = try history.first {
+            try String(contentsOf: $0, encoding: .utf8).contains("--model 'model-one'")
+        }
+        #expect(backupOfV1 != nil)
+
+        // Restore v1 → the managed wrapper returns to v1.
+        await viewModel.restoreBackup(backupOfV1!)
+        #expect(viewModel.wrapperManagerStatus == .installed(modelID: nil, effort: nil))
+        let restored = try String(contentsOf: viewModel.managedWrapperURL, encoding: .utf8)
+        #expect(restored.contains("--model 'model-one'"))
+        #expect(viewModel.managedWrapperExists)
     }
 
     // MARK: - Work Package B: migration of an unmanaged wrapper

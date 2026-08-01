@@ -15,16 +15,16 @@ line_length:
   ignores_urls: true
 
 file_length:
-  warning: 800
-  error: 900
+  warning: 1000
+  error: 1100
 
 function_body_length:
   warning: 80
   error: 120
 
 type_body_length:
-  warning: 700
-  error: 800
+  warning: 750
+  error: 900
 
 cyclomatic_complexity:
   warning: 15

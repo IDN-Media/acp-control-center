@@ -343,8 +343,8 @@ struct ACPWrapperManager: Sendable {
         )
     }
 
-    /// Installs a migration preview: copies the literal unmanaged wrapper
-    /// content into the managed location with the same safe-write guarantees
+    /// Installs a migration preview: writes the re-rendered ACC-format
+    /// wrapper into the managed location with the same safe-write guarantees
     /// as `firstInstall` (destination absent & safe, symlink rejection,
     /// 0700 permissions, zsh -n, read-back). The source file is left
     /// untouched.
