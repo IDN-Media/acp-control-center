@@ -31,6 +31,7 @@
 		E8A189427B443B8A3BAF1373 /* ACPWrapperReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20C4B74EA03EB079E84B19A4 /* ACPWrapperReader.swift */; };
 		F4A1B2C3D4E5F60718293A02 /* ACPWrapperManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A1B2C3D4E5F60718293A01 /* ACPWrapperManager.swift */; };
 		F4A1B2C3D4E5F60718293A04 /* ACPWrapperManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A1B2C3D4E5F60718293A03 /* ACPWrapperManagerView.swift */; };
+		F4A1B2C3D4E5F60718293A07 /* WrapperManagerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A1B2C3D4E5F60718293A08 /* WrapperManagerWindowController.swift */; };
 		F4A1B2C3D4E5F60718293A06 /* ACPWrapperManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A1B2C3D4E5F60718293A05 /* ACPWrapperManagerTests.swift */; };
 		FC892AB53ADAF5056F3B42E2 /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4A79841FA8C5B7A46760ED /* DashboardViewModelTests.swift */; };
 		D1A2B3C4E5F60718293A4B5E /* PathRedactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5C /* PathRedactor.swift */; };
@@ -78,6 +79,7 @@
 		F59621DE42740A00D9BE508E /* KiroCLIResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroCLIResolverTests.swift; sourceTree = "<group>"; };
 		F4A1B2C3D4E5F60718293A01 /* ACPWrapperManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperManager.swift; sourceTree = "<group>"; };
 		F4A1B2C3D4E5F60718293A03 /* ACPWrapperManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperManagerView.swift; sourceTree = "<group>"; };
+		F4A1B2C3D4E5F60718293A08 /* WrapperManagerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WrapperManagerWindowController.swift; sourceTree = "<group>"; };
 		F4A1B2C3D4E5F60718293A05 /* ACPWrapperManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperManagerTests.swift; sourceTree = "<group>"; };
 		FB97945C64BD20C09F145B0D /* DataAvailabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataAvailabilityTests.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5C /* PathRedactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathRedactor.swift; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 				A1B2C3D4E5F6071829300002 /* ACPProviderLifecycle.swift */,
 				F4A1B2C3D4E5F60718293A01 /* ACPWrapperManager.swift */,
 				F4A1B2C3D4E5F60718293A03 /* ACPWrapperManagerView.swift */,
+				F4A1B2C3D4E5F60718293A08 /* WrapperManagerWindowController.swift */,
 				20C4B74EA03EB079E84B19A4 /* ACPWrapperReader.swift */,
 				7327436130D02CD7AAEF8810 /* DashboardView.swift */,
 				C6925BB1570AA9D9BB144D54 /* DashboardViewModel.swift */,
@@ -284,6 +287,7 @@
 				A1B2C3D4E5F6071829300001 /* ACPProviderLifecycle.swift in Sources */,
 				F4A1B2C3D4E5F60718293A02 /* ACPWrapperManager.swift in Sources */,
 				F4A1B2C3D4E5F60718293A04 /* ACPWrapperManagerView.swift in Sources */,
+				F4A1B2C3D4E5F60718293A07 /* WrapperManagerWindowController.swift in Sources */,
 				E8A189427B443B8A3BAF1373 /* ACPWrapperReader.swift in Sources */,
 				2E33B8985A81A5D8B68FF88C /* DashboardView.swift in Sources */,
 				96589E6E374EC4ADF6CC7E63 /* DashboardViewModel.swift in Sources */,

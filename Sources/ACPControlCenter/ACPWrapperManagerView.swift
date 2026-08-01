@@ -6,7 +6,6 @@ import SwiftUI
 /// Package A. Future work packages will add migration and edit-in-place.
 struct ACPWrapperManagerView: View {
     @Bindable var viewModel: DashboardViewModel
-    @Environment(\.dismiss) private var dismiss
     @State private var modelID: String
     @State private var effortValue: String
     @State private var isConfirmingInstall = false
@@ -22,11 +21,7 @@ struct ACPWrapperManagerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(sheetTitle).font(.title2).bold()
-                Spacer()
-                Button("Close") { dismiss() }
-            }
+            Text(sheetTitle).font(.title2).bold()
 
             switch viewModel.lifecycleContext.state {
             case .noProvider, .configuredPathMissing:
