@@ -1,5 +1,7 @@
 # ACP Control Center
-<h2 align="center"><img src="ss.png" width="480" alt="ACP Control Center menu bar app"></h2>
+<p align="center">
+  <img src="ss.png" width="420" alt="ACP Control Center menu bar app">
+</p>
 
 An unofficial macOS menu bar app (SwiftUI `MenuBarExtra`) providing local ACP
 observability and a preview-first managed-wrapper workflow — currently
@@ -11,22 +13,24 @@ supporting Kiro CLI as its initial integration.
 
 ## Current scope
 
-Account, model, CLI, and Xcode ACP discovery remain read-only. The optional
-wrapper manager provides a structured first-time setup flow: it classifies
-provider lifecycle state, generates a preview of the managed wrapper, and
-installs only to its private directory after explicit confirmation. It never
-writes Kiro files or Xcode ACP plist files.
+ACP Control Center provides local ACP observability and a preview-first managed
+wrapper lifecycle for Xcode ACP usage with Kiro CLI. It discovers account
+usage, observed model activity, CLI readiness, and Xcode ACP configuration.
+The wrapper manager supports first-time setup, migration from an unmanaged
+wrapper, in-place model/effort edits, backup history, rollback, and
+post-install verification.
+
+It never writes Kiro files or Xcode ACP plist files. Xcode provider
+configuration remains manual; ACP Control Center manages only its own wrapper
+under its private app directory.
 
 The lifecycle classifier distinguishes seven states (no provider, configured
 path missing, unmanaged wrapper invalid, managed wrapper invalid, unmanaged
 wrapper active, managed wrapper inactive, managed wrapper active) and exposes
 state-specific actions in the dashboard. Unmanaged wrappers are strictly
-read-only; the app never modifies paths it does not own. After first-time
-setup, the UI transitions to a "Finish Xcode Setup" flow that provides the
-managed wrapper path for manual Xcode configuration.
-
-Editing an existing active managed wrapper and migration of unmanaged
-wrappers are planned for later work packages.
+read-only; migration re-renders them into ACC's managed format without
+modifying the original source file. After setup or migration, the UI provides
+the managed wrapper path for manual Xcode configuration.
 
 ## What it reads
 
@@ -35,25 +39,37 @@ wrappers are planned for later work packages.
 | Kiro CLI | selected path, known install paths, then `PATH` | bounded discovery + version check (`--version`) |
 | Live usage | `kiro-cli chat --no-interactive '/usage'` | live credit usage, plan, reset date |
 | Usage logs (fallback) | `~/Library/Application Support/Kiro/logs/**/q-client.log` | credit usage when live fails |
-| Agent logs | `~/.kiro/logs/*/kiro.log` | observed model ID, agent mode, attribution |
+| Agent logs | `~/.kiro/logs/*/kiro.log` | observed model IDs, agent mode, attribution |
 | Xcode ACP plist | `~/Library/Developer/Xcode/CodingAssistant/ACP/*.plist` | configured wrapper path |
 | ACP wrapper script | (path from plist) | parsed as text — never executed |
 
 All readers accept injected paths for testing.
 
-## Safe managed wrapper
+## Safe managed wrapper lifecycle
 
-The **Set Up/Create Managed Replacement** flow renders a wrapper from
-structured executable, model, and effort fields. Before installation it
-displays the complete generated script. An explicitly confirmed first-time
-install then:
+The wrapper manager renders wrappers from structured executable, model, and
+effort fields. Before installation it displays the complete generated script.
+Supported lifecycle actions include:
+
+- first-time managed wrapper setup;
+- managed replacement when Xcode points to a missing path;
+- explicit migration from an unmanaged wrapper;
+- in-place model/effort edits;
+- backup history and rollback;
+- post-install verification with automatic restore on failure.
+
+An explicitly confirmed install then:
 
 1. writes a private sibling temporary file;
 2. validates it with `/bin/zsh -n`;
-3. re-checks that the destination is still absent;
+3. verifies that the destination state is still safe for the requested action;
 4. atomically installs it with permission `0700`;
-5. reads it back and validates it again, removing only its own unchanged bytes
-   if verification fails.
+5. reads it back and validates it again;
+6. restores the previous managed wrapper automatically if replacement
+   verification fails.
+
+Every replacement backs up the previous managed wrapper first. First-time
+setup still rejects existing destinations instead of replacing them.
 
 Managed files live under:
 
@@ -112,6 +128,7 @@ swift test
 xcodebuild test \
   -project ACPControlCenter.xcodeproj \
   -scheme ACPControlCenter \
+  -destination 'platform=macOS' \
   -derivedDataPath .derivedData \
   CODE_SIGNING_ALLOWED=NO
 ```
@@ -136,8 +153,8 @@ swift run ACPControlCenter --diagnostic
   flow, reader resource design
 - [Privacy](Docs/Privacy.md) — data boundaries, network activity, no-sandbox
   rationale
-- [Roadmap](Docs/Roadmap.md) — implemented MVP, planned wrapper manager
-  phases, attribution research
+- [Roadmap](Docs/Roadmap.md) — implemented lifecycle, release readiness, and
+  attribution research
 
 ## Contributing
 
@@ -156,8 +173,9 @@ into public issues.
 
 - The app does not add or modify Xcode ACP providers automatically; managed
   wrappers must be selected through Xcode Settings
-- Model IDs are validated structured input but are not yet discovered from a
-  provider model catalog
+- Model suggestions come from observed local Kiro logs plus `auto`; there is
+  no provider-supported local model catalog yet, so new model IDs can still be
+  entered manually
 - `origin=AI_EDITOR` displayed as "AI editor (unconfirmed)" — cannot
   reliably distinguish Kiro IDE from Xcode ACP
 - Dashboard performs an initial refresh and offers separate CLI search,

@@ -73,23 +73,28 @@ Never use real personal data, credentials, or session identifiers in fixtures.
 
 ## Privacy and write constraints
 
-The current baseline provides read-only observability plus a narrow confirmed
+The project provides read-only observability plus a narrow confirmed
 managed-wrapper write boundary:
 
 **Read-only surface (no writes ever):**
 - All Kiro log readers, model observers, and usage parsers
 - Xcode ACP plist files (always read-only, owned by Xcode)
-- Unmanaged wrapper files (never modified)
+- Unmanaged wrapper files (read for migration, never modified)
 - Kiro files and credentials
 
-**Narrow confirmed write boundary (Work Package A):**
+**Confirmed managed-wrapper write boundary:**
 - Writes only under `~/.local/share/acp-control-center/wrappers/`
-- First-time install only (rejects any existing entry at target)
-- Requires preview + explicit user confirmation
-- Uses first-install-specific API with pre-write destination checks
-- Validates ownership via exact path + marker + parse + syntax
+- Requires preview + explicit user confirmation before writes
+- First-time setup rejects any existing target
+- Migration re-renders unmanaged wrappers into ACC's managed format without
+  modifying the source file
+- Replacement flows back up the previous managed wrapper first
+- Atomic file replacement, post-write validation, and automatic restore on
+  verification failure
+- Ownership validation via exact path + marker + parse + syntax
 
-Any future expansion of the write surface (Work Packages B, C) requires:
+Any future expansion of the write surface beyond ACC's private managed-wrapper
+directory requires:
 
 - Explicitly approved scope documented in the roadmap
 - User confirmation before every write operation

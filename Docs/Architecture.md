@@ -90,22 +90,25 @@ Each reader addresses a specific resource dimension:
 
 ## Managed-wrapper write boundary
 
-Observation remains read-only. Work Package A adds one narrow write surface:
+Observation remains read-only outside ACC's private managed-wrapper directory:
 
 - **Reads** local log files, plist configuration, and wrapper script text.
 - **Invokes** `kiro-cli --version` and `kiro-cli chat --no-interactive '/usage'`.
 - **Persists** only a manually selected Kiro CLI executable path in app
   `UserDefaults`.
-- **Syntax-checks** the wrapper via `/bin/zsh -n` (does not execute it).
+- **Syntax-checks** wrappers via `/bin/zsh -n` (does not execute them).
 - **Renders** managed wrappers only from structured executable/model/effort
   values and a fixed HOME/PATH environment allowlist.
 - **Writes** only under
   `~/.local/share/acp-control-center/wrappers/` after preview and
   explicit confirmation.
-- **Installs once** using a sibling temporary file, permission `0700`,
-  destination race checks, syntax validation, and read-back verification.
-  Work Package A rejects every existing destination and therefore has no
-  previous state to back up or restore.
+- **First-time setup** rejects any existing destination.
+- **Migration** reads an unmanaged wrapper, then re-renders an ACC-format
+  managed wrapper; the unmanaged source file is left untouched.
+- **Edit and rollback** back up the current managed wrapper first, replace it
+  atomically, then verify parse, syntax, ownership marker, permissions, and
+  read-back content. If post-write verification fails, the previous managed
+  wrapper is restored automatically.
 - **Never writes** Kiro files, credentials, or Xcode ACP plist files.
 - **Never opens** Kiro IDE or submits prompts.
 
