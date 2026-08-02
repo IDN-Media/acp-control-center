@@ -69,8 +69,8 @@ output is truncated with a clear marker.
 
 The app does **not** persist analytics, caches, databases, credentials, or
 process output. It can persist the selected CLI path in `UserDefaults` and,
-only after preview plus confirmation, one app-managed wrapper. No executable
-content from an existing wrapper or authentication material is copied.
+after preview plus confirmation, ACC-managed wrapper versions and backups. No
+authentication material is copied.
 
 ## Managed-wrapper writes
 
@@ -83,11 +83,13 @@ Generated scripts contain only:
 - a deterministic ownership marker comment (`# ACC-MANAGED-WRAPPER`).
 
 The app shows the complete script before installation. It does not accept
-arbitrary environment variables or arbitrary shell fragments. Installation
-uses private directories (`0700`), an executable wrapper (`0700`), destination
-race checks, syntax validation, atomic first installation, and read-back
-verification. Existing destinations are rejected rather than replaced. Xcode
-ACP plist files remain read-only.
+arbitrary environment variables or arbitrary shell fragments. First-time setup
+rejects existing destinations. Migration reads unmanaged wrappers as text and
+re-renders them into ACC's managed format without modifying the source file.
+Edits and rollbacks back up the current managed wrapper first, replace it
+atomically, then run syntax, parse, marker, permission, and read-back
+verification. If replacement verification fails, the previous managed wrapper
+is restored automatically. Xcode ACP plist files remain read-only.
 
 The lifecycle classifier determines whether a wrapper is app-owned using
 ALL of the following conditions at the single managed target path:
