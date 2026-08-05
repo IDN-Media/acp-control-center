@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		63E9F122FCD6FDB2C4463E3B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AFC0C609EAE2187D7671504A /* Assets.xcassets */; };
 		07A3605AA758CBCB9863D8A3 /* DomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E426D33FF156DA605CE179FD /* DomainModels.swift */; };
 		2E33B8985A81A5D8B68FF88C /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7327436130D02CD7AAEF8810 /* DashboardView.swift */; };
 		30A19ADC5D9E8C55012F282D /* KiroModelObservationReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D168CD9E781D5CAFEC275E /* KiroModelObservationReader.swift */; };
@@ -53,6 +54,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AFC0C609EAE2187D7671504A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0647A9D2485E017EC02FC220 /* ProcessRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessRunnerTests.swift; sourceTree = "<group>"; };
 		0A5461F1632A8A97FE30A390 /* ACPWrapperReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPWrapperReaderTests.swift; sourceTree = "<group>"; };
 		13D982B0142B24F905D4B2A1 /* KiroUsageReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroUsageReader.swift; sourceTree = "<group>"; };
@@ -111,6 +113,7 @@
 		35B40F05E823B5C5C3C49D25 /* ACPControlCenter */ = {
 			isa = PBXGroup;
 			children = (
+				AFC0C609EAE2187D7671504A /* Assets.xcassets */,
 				A1B2C3D4E5F6071829300002 /* ACPProviderLifecycle.swift */,
 				F4A1B2C3D4E5F60718293A01 /* ACPWrapperManager.swift */,
 				F4A1B2C3D4E5F60718293A03 /* ACPWrapperManagerView.swift */,
@@ -180,6 +183,7 @@
 			buildConfigurationList = 96EB962BE7BA76309C9CB139 /* Build configuration list for PBXNativeTarget "ACPControlCenter" */;
 			buildPhases = (
 				755854B37A0F334098C2F1B5 /* Sources */,
+				92C5462F45F0BBF40742610B /* Resources */,
 			);
 			buildRules = (
 			);
@@ -246,6 +250,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		92C5462F45F0BBF40742610B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				63E9F122FCD6FDB2C4463E3B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8A2A53F4FD70D478CB8277D5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
