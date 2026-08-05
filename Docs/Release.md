@@ -101,8 +101,13 @@ brew tap IDN-Media/tap
 brew install --cask acp-control-center
 ```
 
-The build is currently unsigned. If Gatekeeper complains on first launch, see
-"Opening an unsigned preview build" above (`xattr -dr com.apple.quarantine`).
+The build is currently unsigned. On first launch, Gatekeeper may block the
+app because the download carries a `com.apple.provenance` attribute. Fix once
+with:
+
+```bash
+xattr -dr com.apple.provenance /Applications/ACPControlCenter.app
+```
 
 To update a release, bump `version` and `sha256` in
 `Casks/acp-control-center.rb` (in the tap repo) to the new values.
