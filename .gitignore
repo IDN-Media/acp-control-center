@@ -4,6 +4,7 @@
 
 # Xcode derived data (local builds/tests)
 .derivedData/
+.derivedDataRelease/
 DerivedData/
 
 # Xcode user-specific state (never shared)
@@ -38,3 +39,6 @@ playground.xcworkspace
 # Compiled output (SwiftPM / xcodebuild)
 *.o
 *.dSYM/
+
+# Local release packaging output
+dist/
