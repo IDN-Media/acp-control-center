@@ -106,13 +106,38 @@ for stable numeric width without a fixed frame.
 
 ## Install
 
-The current recommended way is a signed/notarized ZIP from
+Grab the latest ZIP from
 [GitHub Releases](https://github.com/IDN-Media/acp-control-center/releases):
 
 ```bash
 # Download the latest ZIP, then:
-unzip ACPControlCenter-0.1.0-preview.1-macos.zip
+unzip ACPControlCenter-<version>-macos.zip
 mv ACPControlCenter.app /Applications/
+```
+
+### Opening an unsigned preview build
+
+Preview builds are unsigned until Apple Developer signing is available.
+macOS Gatekeeper will show *"cannot verify the developer"* the first time you
+open it. To bypass:
+
+**Option A — one-time xattr (fastest for developers):**
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ACPControlCenter.app
+```
+
+**Option B — right-click Open:**
+
+```text
+Right-click ACPControlCenter.app → Open → click Open again
+```
+
+**Option C — System Settings:**
+
+```text
+System Settings → Privacy & Security → scroll to Security section
+→ "Open Anyway" → Open
 ```
 
 Homebrew is planned:

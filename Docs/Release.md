@@ -31,6 +31,18 @@ Scripts/package-release.sh 0.1.0-preview.1
 This produces an unsigned ZIP in `dist/`. It is useful for local smoke tests
 and for contributors who do not have signing credentials.
 
+### Opening an unsigned preview build
+
+Unsigned builds trigger a Gatekeeper warning on first launch. To open one of
+these preview builds:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ACPControlCenter.app
+```
+
+or right-click the app → **Open** → **Open** again, or
+System Settings → Privacy & Security → **Open Anyway**.
+
 ## Build a signed and notarized ZIP (maintainer mode)
 
 The signing inputs come from the environment, never from the repository:
