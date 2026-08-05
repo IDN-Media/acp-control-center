@@ -331,7 +331,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.idnmedia.acpcontrolcenter;
 				PRODUCT_MODULE_NAME = ACPControlCenter;
 				PRODUCT_NAME = ACPControlCenter;
 				SDKROOT = macosx;
@@ -355,7 +355,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.idnmedia.acpcontrolcenter;
 				PRODUCT_MODULE_NAME = ACPControlCenter;
 				PRODUCT_NAME = ACPControlCenter;
 				SDKROOT = macosx;
@@ -374,7 +374,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.idnmedia.acpcontrolcenter.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ACPControlCenter.app/Contents/MacOS/ACPControlCenter";
 			};
@@ -513,7 +513,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.acpcontrolcenter.macos.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.idnmedia.acpcontrolcenter.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ACPControlCenter.app/Contents/MacOS/ACPControlCenter";
 			};
