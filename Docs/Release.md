@@ -98,12 +98,11 @@ the GitHub Release ZIP + sha256:
 
 ```bash
 brew tap IDN-Media/tap
-brew install --cask --no-quarantine acp-control-center
+brew install --cask acp-control-center
 ```
 
-The `--no-quarantine` flag is needed while releases are unsigned (Homebrew 6
-removed the cask-level `quarantine` directive). Once releases are signed +
-notarized, the plain `brew install --cask acp-control-center` works.
+The build is currently unsigned. If Gatekeeper complains on first launch, see
+"Opening an unsigned preview build" above (`xattr -dr com.apple.quarantine`).
 
 To update a release, bump `version` and `sha256` in
 `Casks/acp-control-center.rb` (in the tap repo) to the new values.
