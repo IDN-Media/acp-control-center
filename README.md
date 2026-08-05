@@ -1,6 +1,6 @@
 # ACP Control Center
 <p align="center">
-  <img src="ss.png" width="420" alt="ACP Control Center menu bar app">
+  <img src="ss.jpg" width="420" alt="ACP Control Center menu bar app">
 </p>
 
 An unofficial macOS menu bar app (SwiftUI `MenuBarExtra`) providing local ACP
@@ -106,6 +106,19 @@ for stable numeric width without a fixed frame.
 
 ## Install
 
+### Option 1 — Homebrew (recommended)
+
+```bash
+brew tap IDN-Media/tap
+brew install --cask --no-quarantine acp-control-center
+```
+
+> The cask is currently an unsigned build, so install with `--no-quarantine`
+> to skip the Gatekeeper prompt. Once releases are signed + notarized, the
+> plain `brew install --cask acp-control-center` works too.
+
+### Option 2 — Manual ZIP from GitHub Releases
+
 Grab the latest ZIP from
 [GitHub Releases](https://github.com/IDN-Media/acp-control-center/releases):
 
@@ -140,12 +153,7 @@ System Settings → Privacy & Security → scroll to Security section
 → "Open Anyway" → Open
 ```
 
-Homebrew is planned:
-
-```bash
-brew tap IDN-Media/tap
-brew install --cask acp-control-center
-```
+> Homebrew installs with `--no-quarantine` skip this entirely.
 
 For contributors, build from source with `swift build` (see Build below).
 
