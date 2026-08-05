@@ -25,7 +25,7 @@ Releases and Homebrew.
 ## Build an unsigned ZIP (contributor mode)
 
 ```bash
-Scripts/package-release.sh 0.1.0-preview.1
+Scripts/package-release.sh 0.1.0
 ```
 
 This produces an unsigned ZIP in `dist/`. It is useful for local smoke tests
@@ -52,7 +52,7 @@ export ACC_SIGNING_IDENTITY="Developer ID Application: IDN Media..."
 export ACC_TEAM_ID="XXXXXXXXXX"
 export ACC_NOTARY_PROFILE="ACCNotaryProfile"
 
-Scripts/package-release.sh 0.1.0-preview.1 --sign
+Scripts/package-release.sh 0.1.0 --sign
 ```
 
 ### Set up the notary keychain profile
@@ -79,22 +79,34 @@ spctl --assess --type execute --verbose=4 ACPControlCenter.app
 1. Tag the release:
 
    ```bash
-   git tag v0.1.0-preview.1
-   git push origin v0.1.0-preview.1
+   git tag v0.1.0
+   git push origin v0.1.0
    ```
 
 2. Create a GitHub Release from the tag.
 3. Attach:
-   - `ACPControlCenter-0.1.0-preview.1-macos.zip`
-   - `ACPControlCenter-0.1.0-preview.1-macos.zip.sha256`
+   - `ACPControlCenter-0.1.0-macos.zip`
+   - `ACPControlCenter-0.1.0-macos.zip.sha256`
 4. Copy release notes that summarize the MVP lifecycle (observability,
    safe managed wrapper setup, migration, edit/history/rollback,
    verification) plus install instructions.
 
 ## Homebrew
 
-A Homebrew cask (`IDN-Media/homebrew-tap`) is planned. It will point at the
-GitHub Release ZIP and its sha256. This is not yet published.
+A Homebrew cask is published in the `IDN-Media/homebrew-tap` tap and points at
+the GitHub Release ZIP + sha256:
+
+```bash
+brew tap IDN-Media/tap
+brew install --cask --no-quarantine acp-control-center
+```
+
+The `--no-quarantine` flag is needed while releases are unsigned (Homebrew 6
+removed the cask-level `quarantine` directive). Once releases are signed +
+notarized, the plain `brew install --cask acp-control-center` works.
+
+To update a release, bump `version` and `sha256` in
+`Casks/acp-control-center.rb` (in the tap repo) to the new values.
 
 ## Future
 
