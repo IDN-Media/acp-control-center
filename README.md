@@ -110,12 +110,16 @@ for stable numeric width without a fixed frame.
 
 ```bash
 brew tap IDN-Media/tap
-brew install --cask --no-quarantine acp-control-center
+brew install --cask acp-control-center
 ```
 
-> The cask is currently an unsigned build, so install with `--no-quarantine`
-> to skip the Gatekeeper prompt. Once releases are signed + notarized, the
-> plain `brew install --cask acp-control-center` works too.
+> The app is currently an unsigned build. On first launch, Gatekeeper may
+> block it because the download carries a `com.apple.provenance` attribute.
+> If that happens, run once:
+>
+> ```bash
+> xattr -dr com.apple.provenance /Applications/ACPControlCenter.app
+> ```
 
 ### Option 2 — Manual ZIP from GitHub Releases
 
@@ -137,6 +141,9 @@ open it. To bypass:
 **Option A — one-time xattr (fastest for developers):**
 
 ```bash
+# macOS 14+: the download carries com.apple.provenance
+xattr -dr com.apple.provenance /Applications/ACPControlCenter.app
+# Older macOS: the classic attribute is com.apple.quarantine
 xattr -dr com.apple.quarantine /Applications/ACPControlCenter.app
 ```
 
@@ -153,7 +160,8 @@ System Settings → Privacy & Security → scroll to Security section
 → "Open Anyway" → Open
 ```
 
-> Homebrew installs with `--no-quarantine` skip this entirely.
+> Homebrew installs (Option 1) may still hit Gatekeeper — in that case use
+> the same `xattr` command above.
 
 For contributors, build from source with `swift build` (see Build below).
 
