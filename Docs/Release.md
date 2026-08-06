@@ -102,10 +102,10 @@ brew install --cask acp-control-center
 ```
 
 The build is currently unsigned. On first launch, Gatekeeper may block the
-app because the download carries a `com.apple.provenance` attribute. Fix once
-with:
+app. Clear the download attributes once with:
 
 ```bash
+xattr -dr com.apple.quarantine /Applications/ACPControlCenter.app
 xattr -dr com.apple.provenance /Applications/ACPControlCenter.app
 ```
 
