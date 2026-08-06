@@ -114,11 +114,10 @@ brew install --cask acp-control-center
 ```
 
 > The app is currently an unsigned build. On first launch, Gatekeeper may
-> block it. If that happens, clear the download attributes once:
+> block it. If that happens, clear the download attribute once:
 >
 > ```bash
 > xattr -dr com.apple.quarantine /Applications/ACPControlCenter.app
-> xattr -dr com.apple.provenance /Applications/ACPControlCenter.app
 > ```
 
 ### Option 2 — Manual ZIP from GitHub Releases
@@ -141,9 +140,6 @@ open it. To bypass:
 **Option A — one-time xattr (fastest for developers):**
 
 ```bash
-# macOS 14+: the download carries com.apple.provenance
-xattr -dr com.apple.provenance /Applications/ACPControlCenter.app
-# Classic attribute that also triggers Gatekeeper:
 xattr -dr com.apple.quarantine /Applications/ACPControlCenter.app
 ```
 
